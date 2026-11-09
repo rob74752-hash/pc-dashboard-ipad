@@ -14,15 +14,17 @@ struct RootView: View {
                     .transition(.opacity)
             }
         }
+        // Changing style or colour rebuilds every view with the new look.
+        .id(store.settings.style.rawValue + "." + store.settings.accent.rawValue)
         .animation(.easeInOut(duration: 0.35), value: store.current == nil || store.showConnect)
-        .background(Theme.canvas.ignoresSafeArea())
+        .background(StyleBackground(design: Design.make(store.settings.style, store.settings.accent)))
         .statusBarHidden(true)
         .persistentSystemOverlays(.hidden)
         .sheet(isPresented: $store.showSettings) {
             SettingsView()
                 .environment(store)
                 .presentationDetents([.large])
-                .preferredColorScheme(.dark)
+                .preferredColorScheme(store.settings.style == .paper ? .light : .dark)
         }
         .onAppear { store.applySystem() }
     }
@@ -47,9 +49,11 @@ struct Dashboard: View {
             .id(store.page)
             .transition(.opacity.combined(with: .scale(scale: 0.99)))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if Theme.style == .glass { GlassNav().padding(.bottom, 14).padding(.top, 6) }
+            }
         }
         .animation(.easeInOut(duration: 0.28), value: store.page)
-        .background(Theme.canvas)
         // A hardware keyboard works too: space plays/pauses, arrows skip, 1-4 change page.
         .background {
             Group {
@@ -75,12 +79,12 @@ struct TopBar: View {
                 HStack(spacing: 10) {
                     Mark().frame(width: 18, height: 18)
                     Text((store.current?.name ?? "PC").uppercased())
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Theme.d.text(13, .semibold))
                         .tracking(2)
                         .foregroundStyle(Theme.ivory)
                         .lineLimit(1)
                     Image(systemName: "chevron.down")
-                        .font(.system(size: 10, weight: .bold))
+                        .font(Theme.d.text(10, .bold))
                         .foregroundStyle(Theme.gold)
                 }
                 .padding(.vertical, 10)
@@ -90,12 +94,14 @@ struct TopBar: View {
             .hoverEffect(.highlight)
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            HStack(spacing: 4) {
-                ForEach(Page.allCases) { p in
-                    NavLink(title: p.title, active: store.page == p) { store.page = p }
+            if Theme.style != .glass {
+                HStack(spacing: 4) {
+                    ForEach(Page.allCases) { p in
+                        NavLink(title: p.title, active: store.page == p) { store.page = p }
+                    }
                 }
+                .fixedSize()
             }
-            .fixedSize()
 
             HStack(spacing: 18) {
                 ViewThatFits(in: .horizontal) {
@@ -104,7 +110,7 @@ struct TopBar: View {
                         TimelineView(.periodic(from: .now, by: 1)) { ctx in
                             let c = Fmt.clock(ctx.date, h24: store.settings.clock24)
                             Text(c.hm + (c.ampm.isEmpty ? "" : " " + c.ampm))
-                                .font(.system(size: 13, weight: .medium).monospacedDigit())
+                                .font(Theme.d.text(13, .medium).monospacedDigit())
                                 .foregroundStyle(Theme.text2)
                                 .fixedSize()
                         }
@@ -113,7 +119,7 @@ struct TopBar: View {
                 }
                 Button { store.showSettings = true } label: {
                     Image(systemName: "gearshape")
-                        .font(.system(size: 16, weight: .regular))
+                        .font(Theme.d.text(16, .regular))
                         .foregroundStyle(Theme.gold)
                         .frame(width: 36, height: 36)
                         .contentShape(Rectangle())
@@ -125,7 +131,26 @@ struct TopBar: View {
         }
         .padding(.horizontal, 20)
         .frame(height: 56)
-        .overlay(alignment: .bottom) { Rectangle().fill(Theme.hairline).frame(height: 1) }
+        .overlay(alignment: .bottom) {
+            if Theme.style != .glass { Rectangle().fill(Theme.hairline).frame(height: 1) }
+        }
+    }
+}
+
+/// Glass style: the pages live in a floating frosted pill at the bottom (from Dimension).
+struct GlassNav: View {
+    @Environment(Store.self) private var store
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(Page.allCases) { p in
+                NavLink(title: p.title, active: store.page == p) { store.page = p }
+            }
+        }
+        .padding(5)
+        .background(.ultraThinMaterial, in: Capsule())
+        .overlay(Capsule().strokeBorder(Color.white.opacity(0.12), lineWidth: 1))
+        .shadow(color: .black.opacity(0.35), radius: 18, y: 8)
     }
 }
 
@@ -159,7 +184,7 @@ struct LinkDot: View {
                 .opacity(store.link == .live ? (pulse ? 1 : 0.35) : 1)
                 .animation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true), value: pulse)
             Text(word)
-                .font(.system(size: 10.5, weight: .semibold))
+                .font(Theme.d.text(10.5, .semibold))
                 .tracking(1.6)
                 .foregroundStyle(color)
         }
@@ -191,11 +216,11 @@ struct StatusBanner: View {
             Image(systemName: icon).symbolEffect(.pulse, options: .repeating)
             Text(text).lineLimit(1)
         }
-        .font(.system(size: 13, weight: .medium))
+        .font(Theme.d.text(13, .medium))
         .foregroundStyle(color)
         .padding(.horizontal, 16)
         .padding(.vertical, 9)
-        .background(Color.black.opacity(0.92), in: Capsule())
+        .background(Theme.canvas.opacity(0.92), in: Capsule())
         .overlay(Capsule().strokeBorder(color.opacity(0.55), lineWidth: 1))
         .transition(.move(edge: .top).combined(with: .opacity))
     }

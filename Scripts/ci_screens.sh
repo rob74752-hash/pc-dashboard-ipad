@@ -51,6 +51,22 @@ shot hot $L -page overview -hot -fahrenheit
 shot nomusic $L -page overview -nomusic
 shot offline $L -page clock -offline
 
+# The other styles and colours
+shot glass-overview $L -page overview -style glass -accent amethyst
+shot glass-music $L -page music -style glass -accent amethyst
+shot glass-performance $L -page performance -style glass -accent amethyst
+shot paper-overview $L -page overview -style paper -accent copper
+shot paper-music $L -page music -style paper -accent copper
+shot paper-clock $L -page clock -style paper -accent copper
+shot paper-performance $L -page performance -style paper -accent copper
+shot terminal-overview $L -page overview -style terminal -accent sapphire
+shot terminal-music $L -page music -style terminal -accent sapphire
+shot terminal-clock $L -page clock -style terminal -accent sapphire
+shot gilded-platinum $L -page overview -accent platinum
+shot gilded-rose-music $L -page music -accent rose
+shot settings-paper $L -settings -style paper -accent copper
+shot glass-portrait $P -page overview -style glass -accent amethyst
+
 # A short clip of the overview to check the gold shimmer and live numbers.
 xcrun simctl io "$UDID" recordVideo --codec=h264 --force "shots/overview.mp4" > /dev/null 2>&1 &
 REC=$!

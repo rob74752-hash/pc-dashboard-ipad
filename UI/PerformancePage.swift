@@ -26,23 +26,23 @@ struct PerformancePage: View {
                     let columns = Array(repeating: GridItem(.flexible(), spacing: Theme.gap), count: wide ? 2 : 1)
                     LazyVGrid(columns: columns, spacing: Theme.gap) {
                         MetricChart(title: "Processor", unit: "%", maxValue: 100,
-                                    series: [.init(name: "CPU", key: \.cpu, color: Theme.gold)])
+                                    series: [.init(name: "CPU", key: \.cpu, color: Theme.signal)])
                         MetricChart(title: "Graphics", unit: "%", maxValue: 100,
-                                    series: [.init(name: "GPU", key: \.gpu, color: Theme.gold)])
+                                    series: [.init(name: "GPU", key: \.gpu, color: Theme.signal)])
                         MetricChart(title: "Memory", unit: "%", maxValue: 100,
-                                    series: [.init(name: "Memory", key: \.mem, color: Theme.gold)])
+                                    series: [.init(name: "Memory", key: \.mem, color: Theme.signal)])
                         MetricChart(title: "Network", unit: "Mb/s",
-                                    series: [.init(name: "Download", key: \.rx, color: Theme.gold),
-                                             .init(name: "Upload", key: \.tx, color: Theme.ivory.opacity(0.55))],
+                                    series: [.init(name: "Download", key: \.rx, color: Theme.signal),
+                                             .init(name: "Upload", key: \.tx, color: Theme.ivory.opacity(0.5))],
                                     convert: { $0 * 8 / 1_000_000 })
                         MetricChart(title: "CPU temperature", unit: store.settings.fahrenheit ? "°F" : "°C",
-                                    series: [.init(name: "CPU", key: \.tcpu, color: Theme.gold)],
+                                    series: [.init(name: "CPU", key: \.tcpu, color: Theme.signal)],
                                     convert: tempConvert, floor: store.settings.fahrenheit ? 80 : 25)
                         MetricChart(title: "GPU temperature", unit: store.settings.fahrenheit ? "°F" : "°C",
-                                    series: [.init(name: "GPU", key: \.tgpu, color: Theme.gold)],
+                                    series: [.init(name: "GPU", key: \.tgpu, color: Theme.signal)],
                                     convert: tempConvert, floor: store.settings.fahrenheit ? 80 : 25)
                         MetricChart(title: "Disk", unit: "MB/s",
-                                    series: [.init(name: "Read", key: \.rd, color: Theme.gold),
+                                    series: [.init(name: "Read", key: \.rd, color: Theme.signal),
                                              .init(name: "Write", key: \.wr, color: Theme.ivory.opacity(0.55))],
                                     convert: { $0 / 1_048_576 })
                     }
@@ -71,12 +71,12 @@ struct RangePicker: View {
                     store.binding(\.historyMinutes).wrappedValue = m
                 } label: {
                     Text(m == 1 ? "1 MIN" : "\(m) MIN")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(Theme.d.text(11, .semibold))
                         .tracking(1.4)
-                        .foregroundStyle(on ? Color.black : Theme.text2)
+                        .foregroundStyle(on ? Theme.onFill : Theme.text2)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 8)
-                        .background(on ? Theme.gold : Color.clear)
+                        .background(on ? Theme.fill : Color.clear)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -107,16 +107,16 @@ struct ThreadHeat: View {
                             let idx = r * perRow + item.0
                             ZStack {
                                 RoundedRectangle(cornerRadius: 3, style: .continuous)
-                                    .fill(Theme.gold.opacity(0.06 + 0.86 * v / 100))
+                                    .fill(Theme.signal.opacity(0.06 + 0.86 * v / 100))
                                 VStack(spacing: 2) {
                                     Text("\(Int(v.rounded()))")
-                                        .font(.system(size: 15, weight: .semibold).monospacedDigit())
+                                        .font(Theme.d.text(15, .semibold).monospacedDigit())
                                         .contentTransition(.numericText())
                                     Text("T\(idx + 1)")
-                                        .font(.system(size: 9, weight: .semibold))
+                                        .font(Theme.d.text(9, .semibold))
                                         .opacity(0.6)
                                 }
-                                .foregroundStyle(v > 55 ? Color.black : Theme.ivory)
+                                .foregroundStyle(v > 55 ? Theme.onSignal : Theme.ivory)
                             }
                             .frame(height: 50)
                         }
@@ -204,11 +204,11 @@ struct MetricChart: View {
                         .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 4]))
                         .annotation(position: .top, alignment: .leading, spacing: 2) {
                             Text("avg \(fmt(avg))")
-                                .font(.system(size: 10, weight: .semibold).monospacedDigit())
+                                .font(Theme.d.text(10, .semibold).monospacedDigit())
                                 .foregroundStyle(Theme.gold)
                                 .padding(.horizontal, 5)
                                 .padding(.vertical, 1)
-                                .background(Color.black.opacity(0.85), in: RoundedRectangle(cornerRadius: 2))
+                                .background(Theme.canvas.opacity(0.85), in: RoundedRectangle(cornerRadius: 2))
                         }
                 }
                 if let sel = selected, let near = nearest(sel, in: data) {
@@ -234,7 +234,7 @@ struct MetricChart: View {
                 AxisMarks(values: .automatic(desiredCount: 4)) { _ in
                     AxisGridLine(stroke: StrokeStyle(lineWidth: 1)).foregroundStyle(Theme.ivory.opacity(0.06))
                     AxisValueLabel(format: .dateTime.hour().minute())
-                        .font(.system(size: 10))
+                        .font(Theme.d.text(10))
                         .foregroundStyle(Theme.text3)
                 }
             }
@@ -242,7 +242,7 @@ struct MetricChart: View {
                 AxisMarks(position: .trailing, values: .automatic(desiredCount: 3)) { _ in
                     AxisGridLine(stroke: StrokeStyle(lineWidth: 1)).foregroundStyle(Theme.ivory.opacity(0.06))
                     AxisValueLabel()
-                        .font(.system(size: 10).monospacedDigit())
+                        .font(Theme.d.text(10).monospacedDigit())
                         .foregroundStyle(Theme.text3)
                 }
             }
@@ -252,7 +252,7 @@ struct MetricChart: View {
     }
 
     private func color(of name: String) -> Color {
-        series.first { $0.name == name }?.color ?? Theme.gold
+        series.first { $0.name == name }?.color ?? Theme.signal
     }
 
     private func nearest(_ date: Date, in data: [Sample]) -> Sample? {
@@ -275,14 +275,14 @@ struct MetricChart: View {
     @ViewBuilder private func tooltip(_ s: Sample) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(s.t, format: .dateTime.hour().minute().second())
-                .font(.system(size: 10, weight: .semibold).monospacedDigit())
+                .font(Theme.d.text(10, .semibold).monospacedDigit())
                 .foregroundStyle(Theme.text3)
             ForEach(series) { ser in
                 if let v = s[keyPath: ser.key] {
                     HStack(spacing: 6) {
                         Circle().fill(ser.color).frame(width: 6, height: 6)
                         Text("\(ser.name) \(fmt(convert(v))) \(unit)")
-                            .font(.system(size: 12, weight: .semibold).monospacedDigit())
+                            .font(Theme.d.text(12, .semibold).monospacedDigit())
                             .foregroundStyle(Theme.ivory)
                     }
                 }
@@ -290,7 +290,7 @@ struct MetricChart: View {
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
-        .background(Color.black, in: RoundedRectangle(cornerRadius: Theme.radius))
+        .background(Theme.canvas, in: RoundedRectangle(cornerRadius: Theme.radius))
         .overlay(RoundedRectangle(cornerRadius: Theme.radius).strokeBorder(Theme.gold.opacity(0.6), lineWidth: 1))
     }
 }

@@ -15,6 +15,22 @@ struct AppSettings: Codable, Equatable {
     var effects = true
     var nightDim = false
     var historyMinutes = 5
+    var style: StyleID = .gilded
+    var accent: AccentID = .gold
+
+    init() {}
+    // Older saved settings simply miss the newer keys.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        fahrenheit = c.val(Bool.self, .fahrenheit) ?? false
+        clock24 = c.val(Bool.self, .clock24) ?? false
+        keepAwake = c.val(Bool.self, .keepAwake) ?? true
+        effects = c.val(Bool.self, .effects) ?? true
+        nightDim = c.val(Bool.self, .nightDim) ?? false
+        historyMinutes = c.val(Int.self, .historyMinutes) ?? 5
+        style = c.val(StyleID.self, .style) ?? .gilded
+        accent = c.val(AccentID.self, .accent) ?? .gold
+    }
 }
 
 enum LinkState: Equatable { case idle, connecting, starting, live, offline }
@@ -76,6 +92,7 @@ final class Store {
         pcs = (d.data(forKey: Self.pcsKey)).flatMap { try? JSONDecoder().decode([SavedPC].self, from: $0) } ?? []
         if let addr = d.string(forKey: Self.currentKey) { current = pcs.first { $0.address == addr } }
         if demo { startDemo(args) }
+        Theme.apply(settings)
     }
 
     // MARK: Settings
@@ -89,6 +106,7 @@ final class Store {
 
     func saveSettings() {
         if !demo, let data = try? JSONEncoder().encode(settings) { UserDefaults.standard.set(data, forKey: Self.settingsKey) }
+        Theme.apply(settings)
         applySystem()
     }
 
@@ -346,6 +364,8 @@ final class Store {
         pcs = [current!, SavedPC(name: "LAPTOP", address: "192.168.4.31:8090")]
         if let i = args.firstIndex(of: "-page"), i + 1 < args.count, let p = Page(rawValue: args[i + 1]) { page = p }
         if args.contains("-fahrenheit") { settings.fahrenheit = true }
+        if let i = args.firstIndex(of: "-style"), i + 1 < args.count, let s = StyleID(rawValue: args[i + 1]) { settings.style = s }
+        if let i = args.firstIndex(of: "-accent"), i + 1 < args.count, let a = AccentID(rawValue: args[i + 1]) { settings.accent = a }
         if args.contains("-nomusic") { feed.musicOn = false }
         if args.contains("-hot") { feed.hot = true }
         feed.prefill(self)

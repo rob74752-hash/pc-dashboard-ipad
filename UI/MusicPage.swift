@@ -44,7 +44,7 @@ struct Backdrop: View {
 
     var body: some View {
         ZStack {
-            Theme.canvas
+            (Theme.style == .glass ? Color.clear : Theme.canvas)
                 .overlay {
                     if let img = store.art {
                         Image(uiImage: img)
@@ -58,7 +58,7 @@ struct Backdrop: View {
                 .clipped()
             RadialGradient(colors: [store.artTint.opacity(0.16), .clear], center: .init(x: 0.28, y: 0.5),
                            startRadius: 10, endRadius: 620)
-            LinearGradient(colors: [.black.opacity(0.0), .black.opacity(0.75)], startPoint: .top, endPoint: .bottom)
+            LinearGradient(colors: [Theme.canvas.opacity(0.0), Theme.canvas.opacity(Theme.style == .glass ? 0.35 : 0.75)], startPoint: .top, endPoint: .bottom)
         }
         .ignoresSafeArea()
         .animation(.easeInOut(duration: 0.8), value: store.artKey)
@@ -108,22 +108,22 @@ struct Controls: View {
                     Eyebrow("Playing on \(store.current?.name ?? "PC") · \(media.app)")
                 }
                 .foregroundStyle(Theme.gold)
-                .font(.system(size: 12, weight: .semibold))
+                .font(Theme.d.text(12, .semibold))
 
                 Text(media.title.isEmpty ? "Unknown title" : media.title)
-                    .font(.system(size: 34, weight: .semibold))
+                    .font(Theme.d.text(34, .semibold))
                     .tracking(-0.8)
                     .foregroundStyle(Theme.ivory)
                     .lineLimit(2)
                     .minimumScaleFactor(0.6)
                     .contentTransition(.opacity)
                 Text(media.artist)
-                    .font(.system(size: 22, weight: .regular))
+                    .font(Theme.d.text(22, .regular))
                     .foregroundStyle(Theme.gold)
                     .lineLimit(1)
                 if !media.album.isEmpty {
                     Text(media.album)
-                        .font(.system(size: 15))
+                        .font(Theme.d.text(15))
                         .foregroundStyle(Theme.text3)
                         .lineLimit(1)
                 }
@@ -208,7 +208,7 @@ struct Scrubber: View {
                     Spacer()
                     Text(dur.map { "-" + Fmt.duration(max(0, $0 - pos)) } ?? "LIVE")
                 }
-                .font(.system(size: 12, weight: .medium).monospacedDigit())
+                .font(Theme.d.text(12, .medium).monospacedDigit())
                 .foregroundStyle(drag == nil ? Theme.text3 : Theme.gold)
             }
         }
@@ -225,7 +225,7 @@ struct VolumeBar: View {
                 HStack(spacing: 14) {
                     Button { store.toggleMute() } label: {
                         Image(systemName: icon(a))
-                            .font(.system(size: 16, weight: .medium))
+                            .font(Theme.d.text(16, .medium))
                             .foregroundStyle(a.muted ? Theme.text3 : Theme.gold)
                             .frame(width: 28)
                             .contentTransition(.symbolEffect(.replace))
@@ -236,7 +236,7 @@ struct VolumeBar: View {
                         store.setVolume(v, final: final)
                     }
                     Text(a.muted ? "Muted" : "\(Int(a.level.rounded()))")
-                        .font(.system(size: 13, weight: .semibold).monospacedDigit())
+                        .font(Theme.d.text(13, .semibold).monospacedDigit())
                         .foregroundStyle(Theme.ivory)
                         .frame(width: 48, alignment: .trailing)
                         .contentTransition(.numericText())
@@ -271,7 +271,7 @@ struct GoldSlider: View {
             let frac = CGFloat(max(0, min(100, value)) / 100)
             ZStack(alignment: .leading) {
                 Capsule().fill(Theme.track).frame(height: dragging ? 6 : 4)
-                Capsule().fill(Theme.gold).frame(width: max(4, g.size.width * frac), height: dragging ? 6 : 4)
+                Capsule().fill(Theme.signal).frame(width: max(4, g.size.width * frac), height: dragging ? 6 : 4)
                 Circle().fill(Theme.aged)
                     .frame(width: dragging ? 20 : 14, height: dragging ? 20 : 14)
                     .offset(x: g.size.width * frac - (dragging ? 10 : 7))
@@ -319,19 +319,19 @@ struct Sources: View {
             HStack(spacing: 8) {
                 if playing {
                     Image(systemName: "waveform")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(Theme.d.text(11, .semibold))
                         .symbolEffect(.variableColor.iterative, options: .repeating)
                 }
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(title).font(.system(size: 13, weight: .semibold))
-                    if let sub { Text(sub).font(.system(size: 11)).opacity(0.7).lineLimit(1) }
+                    Text(title).font(Theme.d.text(13, .semibold))
+                    if let sub { Text(sub).font(Theme.d.text(11)).opacity(0.7).lineLimit(1) }
                 }
             }
-            .foregroundStyle(on ? Color.black : Theme.ivory)
+            .foregroundStyle(on ? Theme.onFill : Theme.ivory)
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
             .frame(maxWidth: 220, alignment: .leading)
-            .background(on ? Theme.gold : Color.clear, in: RoundedRectangle(cornerRadius: Theme.radius))
+            .background(on ? Theme.fill : Color.clear, in: RoundedRectangle(cornerRadius: Theme.radius))
             .overlay(RoundedRectangle(cornerRadius: Theme.radius).strokeBorder(on ? Color.clear : Theme.hairline, lineWidth: 1))
         }
         .buttonStyle(.plain)

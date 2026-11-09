@@ -25,12 +25,12 @@ struct ConnectView: View {
             }
             .scrollIndicators(.hidden)
         }
-        .background(Theme.canvas.ignoresSafeArea())
+        .background(StyleBackground())
         .overlay(alignment: .topTrailing) {
             if store.current != nil {
                 Button { store.showConnect = false } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(Theme.d.text(15, .semibold))
                         .foregroundStyle(Theme.gold)
                         .frame(width: 44, height: 44)
                         .overlay(Circle().strokeBorder(Theme.hairline, lineWidth: 1))
@@ -57,11 +57,11 @@ struct ConnectView: View {
                 Eyebrow("PC Dashboard")
             }
             Text(store.current == nil ? "Connect to your PC" : "Switch PC")
-                .font(.system(size: 40, weight: .semibold))
+                .font(Theme.d.text(40, .semibold))
                 .tracking(-1)
                 .foregroundStyle(Theme.ivory)
             Text("On the PC, double-click **Start PC Dashboard.cmd**. It shows up below by itself, as long as the iPad is on the same Wi-Fi.")
-                .font(.system(size: 16))
+                .font(Theme.d.text(16))
                 .foregroundStyle(Theme.text2)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -89,7 +89,7 @@ struct ConnectView: View {
                     }
                 } else if !store.demo {
                     Button("Look again") { discovery.start() }
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(Theme.d.text(13, .semibold))
                         .foregroundStyle(Theme.gold)
                 }
             }
@@ -97,7 +97,7 @@ struct ConnectView: View {
                 if rows.isEmpty {
                     HStack(spacing: 14) {
                         Image(systemName: "desktopcomputer")
-                            .font(.system(size: 22, weight: .light))
+                            .font(Theme.d.text(22, .light))
                             .foregroundStyle(Theme.gold)
                         Text(discovery.scanning ? "Searching for PCs running PC Dashboard…" : "No PCs found yet.")
                             .font(.ui)
@@ -136,7 +136,7 @@ struct ConnectView: View {
             Eyebrow("Or type the address")
             HStack(spacing: 10) {
                 TextField("", text: $address, prompt: Text("192.168.1.20").foregroundStyle(Theme.text3))
-                    .font(.system(size: 17, weight: .medium).monospacedDigit())
+                    .font(Theme.d.text(17, .medium).monospacedDigit())
                     .foregroundStyle(Theme.ivory)
                     .keyboardType(.numbersAndPunctuation)
                     .textInputAutocapitalization(.never)
@@ -149,11 +149,11 @@ struct ConnectView: View {
                     .overlay(RoundedRectangle(cornerRadius: Theme.radius).strokeBorder(typing ? Theme.gold : Theme.hairline, lineWidth: 1))
                 Button(action: connectTyped) {
                     Group {
-                        if checking { ProgressView().tint(.black) } else { Text("Connect").font(.system(size: 15, weight: .semibold)) }
+                        if checking { ProgressView().tint(Theme.onFill) } else { Text("Connect").font(Theme.d.text(15, .semibold)) }
                     }
-                    .foregroundStyle(Color.black)
+                    .foregroundStyle(Theme.onFill)
                     .frame(width: 120, height: 50)
-                    .background(Theme.gold, in: RoundedRectangle(cornerRadius: Theme.radius))
+                    .background(Theme.fill, in: RoundedRectangle(cornerRadius: Theme.radius))
                 }
                 .buttonStyle(PressScale())
                 .disabled(address.isEmpty || checking)
@@ -204,12 +204,12 @@ struct PCRow: View {
     var body: some View {
         HStack(spacing: 16) {
             Image(systemName: "desktopcomputer")
-                .font(.system(size: 22, weight: .light))
+                .font(Theme.d.text(22, .light))
                 .foregroundStyle(Theme.gold)
                 .frame(width: 34)
             VStack(alignment: .leading, spacing: 3) {
                 Text(found.name.uppercased())
-                    .font(.system(size: 15, weight: .semibold))
+                    .font(Theme.d.text(15, .semibold))
                     .tracking(1.4)
                     .foregroundStyle(Theme.ivory)
                 Text(found.address)
@@ -222,11 +222,11 @@ struct PCRow: View {
             }
             Button(action: connect) {
                 Text(current ? "Open" : "Connect")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(Color.black)
+                    .font(Theme.d.text(14, .semibold))
+                    .foregroundStyle(Theme.onFill)
                     .padding(.horizontal, 18)
                     .frame(height: 38)
-                    .background(Theme.gold, in: RoundedRectangle(cornerRadius: Theme.radius))
+                    .background(Theme.fill, in: RoundedRectangle(cornerRadius: Theme.radius))
             }
             .buttonStyle(PressScale())
         }

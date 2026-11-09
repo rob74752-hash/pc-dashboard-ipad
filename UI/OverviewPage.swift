@@ -93,7 +93,7 @@ struct MiniStat: View {
             Eyebrow(label, color: Theme.text3)
             HStack(alignment: .firstTextBaseline, spacing: 3) {
                 Text(value)
-                    .font(.system(size: 20, weight: .medium).monospacedDigit())
+                    .font(Theme.d.text(20, .medium).monospacedDigit())
                     .foregroundStyle(color)
                     .contentTransition(.numericText())
                 Text(unit)
@@ -108,7 +108,7 @@ struct MiniStat: View {
 struct Sparkline: View {
     var values: [Double?]
     var maxValue: Double? = nil
-    var color: Color = Theme.gold
+    var color: Color = Theme.signal
     var fill = true
 
     var body: some View {
@@ -189,7 +189,7 @@ struct CoreBars: View {
                         ZStack(alignment: .bottom) {
                             Rectangle().fill(Theme.track)
                             Rectangle()
-                                .fill(v >= 90 ? Theme.aged : Theme.gold)
+                                .fill(v >= 90 ? Theme.aged : Theme.signal)
                                 .frame(height: max(1, g.size.height * CGFloat(v / 100)))
                         }
                         .frame(width: bw)
@@ -296,7 +296,7 @@ struct SongProgress: View {
                         Spacer()
                         Text(dur.map { "-" + Fmt.duration(max(0, $0 - (pos ?? 0))) } ?? "")
                     }
-                    .font(.system(size: 11, weight: .medium).monospacedDigit())
+                    .font(Theme.d.text(11, .medium).monospacedDigit())
                     .foregroundStyle(Theme.text3)
                 }
             }
@@ -317,7 +317,7 @@ struct NowPlayingCard: View {
                         Artwork(size: 84)
                         VStack(alignment: .leading, spacing: 4) {
                             Text(m.title.isEmpty ? "Unknown title" : m.title)
-                                .font(.system(size: 17, weight: .semibold))
+                                .font(Theme.d.text(17, .semibold))
                                 .foregroundStyle(Theme.ivory)
                                 .lineLimit(2)
                             Text(m.artist)
@@ -357,10 +357,10 @@ struct NothingPlaying: View {
     var body: some View {
         VStack(spacing: compact ? 10 : 16) {
             Image(systemName: store.apiVersion < 2 ? "arrow.down.circle" : "music.note")
-                .font(.system(size: compact ? 28 : 44, weight: .ultraLight))
+                .font(Theme.d.text(compact ? 28 : 44, .ultraLight))
                 .foregroundStyle(Theme.gold)
             Text(store.apiVersion < 2 ? "Update PC Dashboard on your PC" : "Nothing playing")
-                .font(compact ? .uiMedium : .system(size: 20, weight: .medium))
+                .font(compact ? .uiMedium : Theme.d.text(20, .medium))
                 .foregroundStyle(Theme.ivory)
             Text(store.apiVersion < 2
                  ? "Copy the new PC Dashboard folder to your PC to see and control music here."
@@ -399,13 +399,13 @@ struct NetworkCard: View {
         let up = Fmt.bits(n.tx)
         Card(title: "Network", trailing: n.ping.map { "\(Int($0)) ms" }) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Image(systemName: "arrow.down").font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.gold)
+                Image(systemName: "arrow.down").font(Theme.d.text(14, .semibold)).foregroundStyle(Theme.gold)
                 BigNumber(value: down.0, unit: down.1, size: 30)
             }
             HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Image(systemName: "arrow.up").font(.system(size: 12, weight: .semibold)).foregroundStyle(Theme.text3)
+                Image(systemName: "arrow.up").font(Theme.d.text(12, .semibold)).foregroundStyle(Theme.text3)
                 Text(up.0 + " " + up.1)
-                    .font(.system(size: 14, weight: .medium).monospacedDigit())
+                    .font(Theme.d.text(14, .medium).monospacedDigit())
                     .foregroundStyle(Theme.text2)
                     .contentTransition(.numericText())
             }
@@ -455,7 +455,7 @@ struct TempsCard: View {
                                 Text(t.name).font(.small).foregroundStyle(Theme.text2).lineLimit(1)
                                 Spacer()
                                 Text(Fmt.temp(t.celsius, fahrenheit: f))
-                                    .font(.system(size: 14, weight: .semibold).monospacedDigit())
+                                    .font(Theme.d.text(14, .semibold).monospacedDigit())
                                     .foregroundStyle(level >= 1 ? Theme.levelColor(level) : Theme.ivory)
                                     .contentTransition(.numericText())
                             }
@@ -487,7 +487,7 @@ struct ProcessesCard: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                         Meter(value: min(100, p.cpu * 4), height: 2).frame(width: 64)
                         Text(String(format: "%.1f%%", p.cpu))
-                            .font(.system(size: 13, weight: .medium).monospacedDigit())
+                            .font(Theme.d.text(13, .medium).monospacedDigit())
                             .foregroundStyle(Theme.gold)
                             .frame(width: 52, alignment: .trailing)
                         Text(Fmt.bytes(p.mem))
@@ -512,12 +512,12 @@ struct DrivesCard: View {
                 ForEach(drives.prefix(3)) { d in
                     VStack(spacing: 6) {
                         HStack(alignment: .firstTextBaseline) {
-                            Text(d.name).font(.system(size: 14, weight: .semibold)).foregroundStyle(Theme.gold)
+                            Text(d.name).font(Theme.d.text(14, .semibold)).foregroundStyle(Theme.gold)
                             Text(d.label).font(.small).foregroundStyle(Theme.text3).lineLimit(1)
                             Spacer()
                             Text(Fmt.bytes(d.free) + " free").font(.small.monospacedDigit()).foregroundStyle(Theme.text2)
                         }
-                        Meter(value: d.usedPct, color: d.usedPct > 90 ? Theme.hot : Theme.gold, height: 2)
+                        Meter(value: d.usedPct, color: d.usedPct > 90 ? Theme.hot : Theme.signal, height: 2)
                     }
                 }
             }

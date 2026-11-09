@@ -1,14 +1,7 @@
 import SwiftUI
 import CoreMotion
 
-// Design lock (refero-design research, Nov 2026)
-// Primary: Atoms ("black steel, golden inscription"): absolute black, ivory text, weathered gold
-//          for labels/headings/interactive highlights, flat 4 pt cards drawn with 1 px gold hairlines.
-// Borrowed: 601 Inc. - oversized aged-gold display numerals, tight -0.04 em tracking, gold
-//           nav links with a 1 px underline. Slash - a warm golden gradient used ONLY for
-//           decorative depth (glows, chart fills), never as a surface or text colour.
-// Charts follow Gentler Streak: title left, range right, faint grid, dashed average line.
-// Ember/red are status colours only (hot / critical temperatures).
+// Shared building blocks. Each one draws itself in the current style (see Design.swift).
 
 extension Color {
     init(hex: UInt32, alpha: Double = 1) {
@@ -17,68 +10,53 @@ extension Color {
     }
 }
 
-enum Theme {
-    static let canvas = Color.black
-    static let ivory = Color(hex: 0xFFF7DD)      // primary text, hairline dividers
-    static let gold = Color(hex: 0xC8AD86)       // labels, headings, active controls, live data lines
-    static let aged = Color(hex: 0xECE4B4)       // big display numerals only
-    static let ember = Color(hex: 0xCC9166)      // decorative gradients only
-    static let hot = Color(hex: 0xE58A4A)        // status: hot
-    static let critical = Color(hex: 0xEF5A4C)   // status: critical / offline
-
-    static let text2 = ivory.opacity(0.62)
-    static let text3 = ivory.opacity(0.40)
-    static let hairline = gold.opacity(0.30)
-    static let track = ivory.opacity(0.10)
-    static let raised = Color(hex: 0x0E0C09)     // pressed / selected fills
-
-    static let radius: CGFloat = 4
-    static let pad: CGFloat = 20
-    static let gap: CGFloat = 8
-
-    static func levelColor(_ level: Int) -> Color {
-        switch level {
-        case 3: return critical
-        case 2: return hot
-        case 1: return aged
-        default: return gold
-        }
-    }
-
-    /// Decorative gold-to-ember gradient (fills, glows).
-    static var gleam: LinearGradient {
-        LinearGradient(colors: [aged, gold, ember], startPoint: .top, endPoint: .bottom)
-    }
-}
-
 extension Font {
-    /// Wide, light numerals for big readouts (stand-in for 601's changeling-neo).
-    static func display(_ size: CGFloat, weight: Font.Weight = .light) -> Font {
-        .system(size: size, weight: weight).width(.expanded)
-    }
-    static let eyebrow = Font.system(size: 10.5, weight: .semibold)
-    static let ui = Font.system(size: 14, weight: .regular)
-    static let uiMedium = Font.system(size: 14, weight: .medium)
-    static let small = Font.system(size: 12, weight: .regular)
+    static func display(_ size: CGFloat, weight: Font.Weight = .light) -> Font { Theme.d.display(size, weight: weight) }
+    static var eyebrow: Font { Theme.d.text(10.5, .semibold) }
+    static var ui: Font { Theme.d.text(14) }
+    static var uiMedium: Font { Theme.d.text(14, .medium) }
+    static var small: Font { Theme.d.text(12) }
 }
 
-// MARK: - Small building blocks
+// MARK: - Labels
 
-/// Tracked uppercase label in weathered gold ("PROCESSOR").
+/// Section label. Gilded: tracked gold capitals. Glass: grey sentence case. Paper: black
+/// sentence case. Terminal: lowercase monospace after an accent glyph.
 struct Eyebrow: View {
     var text: String
-    var color: Color = Theme.gold
-    init(_ text: String, color: Color = Theme.gold) { self.text = text; self.color = color }
+    var color: Color?
+    init(_ text: String, color: Color? = nil) { self.text = text; self.color = color }
+
     var body: some View {
-        Text(text.uppercased())
-            .font(.eyebrow)
-            .tracking(1.6)
-            .foregroundStyle(color)
+        switch Theme.style {
+        case .gilded:
+            Text(text.uppercased())
+                .font(Theme.d.text(10.5, .semibold))
+                .tracking(1.6)
+                .foregroundStyle(color ?? Theme.label)
+                .lineLimit(1)
+        case .glass:
+            Text(text)
+                .font(Theme.d.text(13, .medium))
+                .foregroundStyle(color ?? Theme.label)
+                .lineLimit(1)
+        case .paper:
+            Text(text)
+                .font(Theme.d.text(13))
+                .foregroundStyle(color ?? Theme.label)
+                .lineLimit(1)
+        case .terminal:
+            HStack(spacing: 6) {
+                Text("▸").foregroundStyle(Theme.gold)
+                Text(text.lowercased()).foregroundStyle(color ?? Theme.label)
+            }
+            .font(Theme.d.text(12.5))
             .lineLimit(1)
+        }
     }
 }
 
-/// Flat black card with a 1 px gold hairline and a 4 pt radius.
+/// A card in the current style.
 struct Card<Content: View>: View {
     var title: String?
     var trailing: String?
@@ -86,7 +64,7 @@ struct Card<Content: View>: View {
     @ViewBuilder var content: () -> Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        let inner = VStack(alignment: .leading, spacing: 14) {
             if title != nil || trailing != nil {
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
                     if let title { Eyebrow(title) }
@@ -102,29 +80,76 @@ struct Card<Content: View>: View {
             }
             content()
         }
-        .padding(padding)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(Theme.canvas)
-        .clipShape(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 1))
+        switch Theme.style {
+        case .paper:
+            // 19-86: no boxes, just a 1 px black rule above each block.
+            inner
+                .padding(.top, 12)
+                .padding(.horizontal, 2)
+                .padding(.bottom, 4)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .overlay(alignment: .top) { Rectangle().fill(Theme.ivory).frame(height: 1) }
+        case .glass:
+            inner
+                .padding(padding)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .background {
+                    RoundedRectangle(cornerRadius: Theme.radius, style: .continuous)
+                        .fill(.ultraThinMaterial)
+                        .overlay(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous).fill(Theme.d.cardFill))
+                }
+                .overlay(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 1))
+                .shadow(color: .black.opacity(0.25), radius: 10, y: 6)
+        default:
+            inner
+                .padding(padding)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .background(Theme.d.cardFill, in: RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 1))
+        }
     }
 }
 
-/// A hairline meter: thin ivory track, gold fill.
+/// A meter. Gilded/Glass: thin capsule. Paper: flat rule. Terminal: LED blocks.
 struct Meter: View {
     var value: Double   // 0...100
-    var color: Color = Theme.gold
+    var color: Color? = nil
     var height: CGFloat = 3
 
     var body: some View {
-        GeometryReader { g in
-            ZStack(alignment: .leading) {
-                Capsule().fill(Theme.track)
-                Capsule().fill(color)
-                    .frame(width: max(height, g.size.width * CGFloat(max(0, min(100, value)) / 100)))
+        let v = max(0, min(100, value))
+        let c = color ?? Theme.signal
+        Group {
+            switch Theme.style {
+            case .terminal:
+                GeometryReader { g in
+                    let n = max(6, Int(g.size.width / 7))
+                    let lit = Int((Double(n) * v / 100).rounded())
+                    HStack(spacing: 2) {
+                        ForEach(0..<n, id: \.self) { i in
+                            Rectangle().fill(i < lit ? c : Theme.track)
+                        }
+                    }
+                }
+                .frame(height: max(5, height + 2))
+            case .paper:
+                GeometryReader { g in
+                    ZStack(alignment: .leading) {
+                        Rectangle().fill(Theme.track)
+                        Rectangle().fill(c).frame(width: max(1, g.size.width * CGFloat(v / 100)))
+                    }
+                }
+                .frame(height: height)
+            default:
+                GeometryReader { g in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(Theme.track)
+                        Capsule().fill(c).frame(width: max(height, g.size.width * CGFloat(v / 100)))
+                    }
+                }
+                .frame(height: height)
             }
         }
-        .frame(height: height)
         .animation(.smooth(duration: 0.6), value: value)
     }
 }
@@ -134,7 +159,7 @@ struct StatRow: View {
     var label: String
     var value: String
     var unit: String = ""
-    var valueColor: Color = Theme.ivory
+    var valueColor: Color? = nil
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
@@ -144,8 +169,8 @@ struct StatRow: View {
                 .lineLimit(1)
             Spacer(minLength: 6)
             Text(value)
-                .font(.system(size: 14, weight: .medium).monospacedDigit())
-                .foregroundStyle(valueColor)
+                .font(Theme.d.text(14, .medium).monospacedDigit())
+                .foregroundStyle(valueColor ?? Theme.ivory)
                 .contentTransition(.numericText())
             if !unit.isEmpty {
                 Text(unit).font(.small).foregroundStyle(Theme.text3)
@@ -154,7 +179,7 @@ struct StatRow: View {
     }
 }
 
-// MARK: - Gold leaf numerals
+// MARK: - Gold leaf numerals (Gilded)
 
 /// Device tilt for the foil highlight (the iPad's gyro). Read without observation so it
 /// never causes extra redraws; the foil's own 30 fps timeline picks it up.
@@ -186,64 +211,72 @@ struct GoldLeaf: ViewModifier {
     var enabled: Bool
 
     func body(content: Content) -> some View {
+        let d = Theme.d
         if enabled {
             TimelineView(.animation(minimumInterval: 1.0 / 30)) { ctx in
                 let t = Float(ctx.date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 2000))
                 let tilt = Motion.shared.tilt
                 content
-                    .foregroundStyle(Theme.aged)
+                    .foregroundStyle(d.numeral)
                     .visualEffect { view, proxy in
                         view.colorEffect(ShaderLibrary.goldFoil(
                             .float2(proxy.size),
                             .float(t),
-                            .float2(Float(tilt.x), Float(tilt.y))))
+                            .float2(Float(tilt.x), Float(tilt.y)),
+                            .color(d.numeral),
+                            .color(d.accent),
+                            .color(d.deco)))
                     }
             }
             .onAppear { Motion.shared.retain() }
             .onDisappear { Motion.shared.release() }
         } else {
-            content.foregroundStyle(LinearGradient(colors: [Color(hex: 0xF4EAC4), Theme.aged, Theme.gold],
+            content.foregroundStyle(LinearGradient(colors: [d.numeral, d.numeral, d.accent],
                                                    startPoint: .top, endPoint: .bottom))
         }
     }
 }
 
-/// Oversized wide numerals in gold leaf, with a small unit set beside them.
+/// The big readout numerals, in the current style, with a small unit beside them.
 struct BigNumber: View {
     @Environment(Store.self) private var store
     var value: String
     var unit: String = ""
     var size: CGFloat
-    var color: Color? = nil   // a status colour replaces the gold
+    var color: Color? = nil   // a status colour replaces the style's colour
 
     var body: some View {
+        let d = Theme.d
+        let tracking: CGFloat = d.style == .gilded ? -0.04 : d.style == .terminal ? -0.02 : d.style == .paper ? -0.02 : -0.014
         HStack(alignment: .firstTextBaseline, spacing: size * 0.06) {
-            numerals
+            Group {
+                let text = Text(value)
+                    .font(d.display(size))
+                    .tracking(size * tracking)
+                    .monospacedDigit()
+                    .contentTransition(.numericText())
+                if let color {
+                    text.foregroundStyle(color)
+                } else if d.foil {
+                    text.modifier(GoldLeaf(enabled: store.settings.effects))
+                } else {
+                    text.foregroundStyle(d.numeral)
+                }
+            }
             if !unit.isEmpty {
                 Text(unit)
-                    .font(.display(max(13, size * 0.26), weight: .regular))
+                    .font(d.display(max(13, size * 0.26), weight: .regular))
                     .foregroundStyle(color ?? Theme.gold)
             }
         }
         .lineLimit(1)
         .minimumScaleFactor(0.5)
     }
-
-    @ViewBuilder private var numerals: some View {
-        let text = Text(value)
-            .font(.display(size))
-            .tracking(-size * 0.04)
-            .monospacedDigit()
-            .contentTransition(.numericText())
-        if let color {
-            text.foregroundStyle(color)
-        } else {
-            text.modifier(GoldLeaf(enabled: store.settings.effects))
-        }
-    }
 }
 
-/// The gold nav link from 601: gold text, 1 px underline when active.
+// MARK: - Navigation and buttons
+
+/// Page link in the top bar, drawn per style.
 struct NavLink: View {
     var title: String
     var active: Bool
@@ -251,27 +284,54 @@ struct NavLink: View {
 
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 6) {
-                Text(title.uppercased())
-                    .font(.system(size: 12, weight: .semibold))
-                    .tracking(1.8)
-                    .foregroundStyle(active ? Theme.gold : Theme.text3)
-                Rectangle()
-                    .fill(active ? Theme.gold : .clear)
-                    .frame(height: 1)
-            }
-            .fixedSize()
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .contentShape(Rectangle())
+            label
+                .fixedSize()
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .hoverEffect(.highlight)
         .animation(.easeOut(duration: 0.2), value: active)
     }
+
+    @ViewBuilder private var label: some View {
+        switch Theme.style {
+        case .gilded:
+            VStack(spacing: 6) {
+                Text(title.uppercased())
+                    .font(Theme.d.text(12, .semibold))
+                    .tracking(1.8)
+                    .foregroundStyle(active ? Theme.gold : Theme.text3)
+                Rectangle().fill(active ? Theme.gold : .clear).frame(height: 1)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+        case .paper:
+            HStack(spacing: 7) {
+                Circle().fill(active ? Theme.gold : .clear).frame(width: 6, height: 6)
+                Text(title).font(Theme.d.text(15)).foregroundStyle(active ? Theme.ivory : Theme.text3)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 10)
+        case .terminal:
+            Text(title.lowercased())
+                .font(Theme.d.text(13))
+                .foregroundStyle(active ? Theme.d.onFill : Theme.text3)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 7)
+                .background(active ? Theme.fill : .clear, in: Capsule())
+                .overlay(Capsule().strokeBorder(active ? Color.white.opacity(0.10) : .clear, lineWidth: 1))
+        case .glass:
+            Text(title)
+                .font(Theme.d.text(14, .medium))
+                .foregroundStyle(active ? Theme.onFill : Theme.text2)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 9)
+                .background(active ? Theme.fill : .clear, in: Capsule())
+        }
+    }
 }
 
-/// Round gold-outline control (music transport, small toggles).
+/// Round control (music transport, small toggles), drawn per style.
 struct RingButton: View {
     var symbol: String
     var size: CGFloat = 44
@@ -288,13 +348,11 @@ struct RingButton: View {
             action()
         } label: {
             ZStack {
-                Circle()
-                    .fill(filled ? Theme.gold : Color.clear)
-                Circle()
-                    .strokeBorder(filled ? Color.clear : (active ? Theme.gold : Theme.hairline), lineWidth: 1)
+                Circle().fill(filled ? Theme.fill : (active && Theme.style == .terminal ? Theme.fill : Color.clear))
+                Circle().strokeBorder(stroke, lineWidth: 1)
                 Image(systemName: symbol)
                     .font(.system(size: size * 0.36, weight: .semibold))
-                    .foregroundStyle(filled ? Color.black : (active ? Theme.gold : Theme.ivory))
+                    .foregroundStyle(filled ? Theme.onFill : (active ? Theme.gold : Theme.ivory))
                     .symbolEffect(.bounce, value: taps)
                     .contentTransition(.symbolEffect(.replace))
             }
@@ -305,6 +363,11 @@ struct RingButton: View {
         .disabled(!enabled)
         .opacity(enabled ? 1 : 0.3)
         .hoverEffect(.lift)
+    }
+
+    private var stroke: Color {
+        if filled { return Theme.style == .terminal ? Color.white.opacity(0.12) : .clear }
+        return active ? Theme.gold : Theme.hairline
     }
 }
 

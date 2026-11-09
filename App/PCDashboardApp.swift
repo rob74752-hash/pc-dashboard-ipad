@@ -11,8 +11,8 @@ struct PCDashboardApp: App {
                 RootView()
             }
             .environment(store)
-            .preferredColorScheme(.dark)
-            .tint(Theme.gold)
+            .preferredColorScheme(store.settings.style == .paper ? .light : .dark)
+            .tint(Design.make(store.settings.style, store.settings.accent).accent)
             .onChange(of: phase) { _, p in store.scenePhase(p) }
             .onAppear { DemoOrientation.apply() }
         }

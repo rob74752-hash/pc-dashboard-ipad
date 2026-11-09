@@ -22,7 +22,7 @@ struct ClockPage: View {
                                 .contentTransition(.numericText())
                             if !c.ampm.isEmpty {
                                 Text(c.ampm)
-                                    .font(.system(size: size * 0.1, weight: .semibold))
+                                    .font(Theme.d.text(size * 0.1, .semibold))
                                     .tracking(2)
                                     .foregroundStyle(Theme.text3)
                             }
@@ -74,8 +74,8 @@ struct Vitals: View {
         VStack(spacing: 5) {
             Eyebrow(label, color: Theme.text3)
             Text(value)
-                .font(.system(size: 19, weight: .medium).monospacedDigit())
-                .foregroundStyle(color == Theme.gold ? Theme.ivory : color)
+                .font(Theme.d.text(19, .medium).monospacedDigit())
+                .foregroundStyle(color == Theme.signal ? Theme.ivory : color)
                 .contentTransition(.numericText())
         }
         .fixedSize()
@@ -90,7 +90,7 @@ struct NowPlayingStrip: View {
             HStack(spacing: 16) {
                 Artwork(size: 58)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(m.title).font(.system(size: 16, weight: .semibold)).foregroundStyle(Theme.ivory).lineLimit(1)
+                    Text(m.title).font(Theme.d.text(16, .semibold)).foregroundStyle(Theme.ivory).lineLimit(1)
                     Text(m.artist).font(.ui).foregroundStyle(Theme.gold).lineLimit(1)
                     SongProgress(showTimes: false).padding(.top, 4)
                 }
