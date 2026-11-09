@@ -116,7 +116,7 @@ struct ThreadHeat: View {
                                         .font(Theme.d.text(9, .semibold))
                                         .opacity(0.6)
                                 }
-                                .foregroundStyle(v > 55 ? Theme.onSignal : Theme.ivory)
+                                .foregroundStyle(v > (Theme.style == .paper ? 38 : 55) ? Theme.onSignal : Theme.ivory)
                             }
                             .frame(height: 50)
                         }

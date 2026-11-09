@@ -46,7 +46,7 @@ struct Backdrop: View {
         ZStack {
             (Theme.style == .glass ? Color.clear : Theme.canvas)
                 .overlay {
-                    if let img = store.art {
+                    if let img = store.art, Theme.style != .paper {
                         Image(uiImage: img)
                             .resizable()
                             .aspectRatio(contentMode: .fill)
@@ -56,7 +56,7 @@ struct Backdrop: View {
                     }
                 }
                 .clipped()
-            RadialGradient(colors: [store.artTint.opacity(0.16), .clear], center: .init(x: 0.28, y: 0.5),
+            RadialGradient(colors: [store.artTint.opacity(Theme.style == .paper ? 0 : 0.16), .clear], center: .init(x: 0.28, y: 0.5),
                            startRadius: 10, endRadius: 620)
             LinearGradient(colors: [Theme.canvas.opacity(0.0), Theme.canvas.opacity(Theme.style == .glass ? 0.35 : 0.75)], startPoint: .top, endPoint: .bottom)
         }

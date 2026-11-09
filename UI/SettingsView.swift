@@ -191,6 +191,7 @@ struct StyleTile: View {
                     .padding(10)
                 }
                 .frame(height: 118)
+                .environment(\.colorScheme, d.dark ? .dark : .light)
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .strokeBorder(selected ? Theme.gold : Theme.hairline, lineWidth: selected ? 2 : 1))
