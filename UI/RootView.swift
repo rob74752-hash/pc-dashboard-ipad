@@ -35,6 +35,7 @@ struct Dashboard: View {
     var body: some View {
         VStack(spacing: 0) {
             TopBar()
+            StatusBanner()
             ZStack {
                 switch store.page {
                 case .overview: OverviewPage()
@@ -46,7 +47,6 @@ struct Dashboard: View {
             .id(store.page)
             .transition(.opacity.combined(with: .scale(scale: 0.99)))
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .overlay(alignment: .top) { StatusBanner() }
         }
         .animation(.easeInOut(duration: 0.28), value: store.page)
         .background(Theme.canvas)
@@ -98,12 +98,18 @@ struct TopBar: View {
             .fixedSize()
 
             HStack(spacing: 18) {
-                LinkDot()
-                TimelineView(.periodic(from: .now, by: 1)) { ctx in
-                    let c = Fmt.clock(ctx.date, h24: store.settings.clock24)
-                    Text(c.hm + (c.ampm.isEmpty ? "" : " " + c.ampm))
-                        .font(.system(size: 13, weight: .medium).monospacedDigit())
-                        .foregroundStyle(Theme.text2)
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 18) {
+                        LinkDot()
+                        TimelineView(.periodic(from: .now, by: 1)) { ctx in
+                            let c = Fmt.clock(ctx.date, h24: store.settings.clock24)
+                            Text(c.hm + (c.ampm.isEmpty ? "" : " " + c.ampm))
+                                .font(.system(size: 13, weight: .medium).monospacedDigit())
+                                .foregroundStyle(Theme.text2)
+                                .fixedSize()
+                        }
+                    }
+                    LinkDot()
                 }
                 Button { store.showSettings = true } label: {
                     Image(systemName: "gearshape")
@@ -175,7 +181,8 @@ struct StatusBanner: View {
                 banner(icon: "thermometer.high", text: heat + ". Check its cooling.", color: Theme.critical)
             }
         }
-        .padding(.top, 10)
+        .frame(maxWidth: .infinity)
+        .padding(.top, store.link == .offline || store.link == .starting || store.heatAlert != nil ? 10 : 0)
         .animation(.easeInOut(duration: 0.3), value: store.link)
     }
 

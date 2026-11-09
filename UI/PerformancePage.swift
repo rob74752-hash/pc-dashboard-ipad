@@ -206,6 +206,9 @@ struct MetricChart: View {
                             Text("avg \(fmt(avg))")
                                 .font(.system(size: 10, weight: .semibold).monospacedDigit())
                                 .foregroundStyle(Theme.gold)
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 1)
+                                .background(Color.black.opacity(0.85), in: RoundedRectangle(cornerRadius: 2))
                         }
                 }
                 if let sel = selected, let near = nearest(sel, in: data) {

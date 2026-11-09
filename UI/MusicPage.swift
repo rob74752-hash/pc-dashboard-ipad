@@ -9,10 +9,11 @@ struct MusicPage: View {
             let landscape = g.size.width > g.size.height
             ZStack {
                 Backdrop()
+                    .frame(width: g.size.width, height: g.size.height)
                 if let m = store.media {
                     if landscape {
                         HStack(spacing: 56) {
-                            ArtStage(side: min(g.size.height - 120, g.size.width * 0.42))
+                            ArtStage(side: min(g.size.height - 190, g.size.width * 0.40))
                             Controls(media: m)
                                 .frame(maxWidth: 440)
                         }
@@ -20,7 +21,7 @@ struct MusicPage: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                     } else {
                         VStack(spacing: 44) {
-                            ArtStage(side: min(g.size.width - 160, g.size.height * 0.45))
+                            ArtStage(side: min(g.size.width - 200, g.size.height * 0.40))
                             Controls(media: m)
                                 .frame(maxWidth: 520)
                         }
@@ -31,6 +32,7 @@ struct MusicPage: View {
                     NothingPlaying()
                 }
             }
+            .frame(width: g.size.width, height: g.size.height)
         }
     }
 }
@@ -43,15 +45,17 @@ struct Backdrop: View {
     var body: some View {
         ZStack {
             Theme.canvas
-            if let img = store.art {
-                Image(uiImage: img)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .blur(radius: 70)
-                    .opacity(0.22)
-                    .clipped()
-                    .transition(.opacity)
-            }
+                .overlay {
+                    if let img = store.art {
+                        Image(uiImage: img)
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .blur(radius: 70)
+                            .opacity(0.22)
+                            .transition(.opacity)
+                    }
+                }
+                .clipped()
             RadialGradient(colors: [store.artTint.opacity(0.16), .clear], center: .init(x: 0.28, y: 0.5),
                            startRadius: 10, endRadius: 620)
             LinearGradient(colors: [.black.opacity(0.0), .black.opacity(0.75)], startPoint: .top, endPoint: .bottom)
@@ -96,8 +100,8 @@ struct Controls: View {
     var media: MediaInfo
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 26) {
-            VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 22) {
+            VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 8) {
                     Image(systemName: "waveform")
                         .symbolEffect(.variableColor.iterative, options: .repeating, isActive: media.isPlaying)
@@ -107,7 +111,7 @@ struct Controls: View {
                 .font(.system(size: 12, weight: .semibold))
 
                 Text(media.title.isEmpty ? "Unknown title" : media.title)
-                    .font(.system(size: 38, weight: .semibold))
+                    .font(.system(size: 34, weight: .semibold))
                     .tracking(-0.8)
                     .foregroundStyle(Theme.ivory)
                     .lineLimit(2)

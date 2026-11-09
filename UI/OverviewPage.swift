@@ -13,8 +13,8 @@ struct OverviewPage: View {
                 Waiting()
             } else if g.size.width > g.size.height {
                 // Landscape (the iPad on a stand)
-                let r1 = (h - gap * 2) * 0.44
-                let r2 = (h - gap * 2) * 0.26
+                let r1 = (h - gap * 2) * 0.41
+                let r2 = (h - gap * 2) * 0.25
                 let r3 = h - gap * 2 - r1 - r2
                 VStack(spacing: gap) {
                     HStack(spacing: gap) {
@@ -477,8 +477,8 @@ struct ProcessesCard: View {
     var body: some View {
         let procs = (store.snap ?? Snapshot()).procs
         Card(title: "Busiest apps", trailing: "CPU · memory") {
-            VStack(spacing: 8) {
-                ForEach(procs.prefix(6)) { p in
+            VStack(spacing: 7) {
+                ForEach(procs.prefix(5)) { p in
                     HStack(spacing: 12) {
                         Text(p.name)
                             .font(.ui)

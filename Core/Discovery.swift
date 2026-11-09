@@ -74,12 +74,11 @@ final class Discovery {
     private func handle(_ results: Set<NWBrowser.Result>) {
         for r in results {
             guard case let .service(name, _, _, _) = r.endpoint else { continue }
-            var ips: [String] = []
-            var port = API.defaultPort
-            if case let .bonjour(txt) = r.metadata {
-                ips = (txt["ips"] ?? "").split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
-                if let p = Int(txt["port"] ?? "") { port = p }
-            }
+            var txt: NWTXTRecord?
+            if case let .bonjour(t) = r.metadata { txt = t }
+            let ips: [String] = (txt?["ips"] ?? "").split(separator: ",")
+                .map { String($0).trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+            let port: Int = Int(txt?["port"] ?? "") ?? API.defaultPort
             guard !resolving.contains(name) else { continue }
             resolving.insert(name)
             let endpoint = r.endpoint
@@ -108,12 +107,9 @@ final class Discovery {
         if let ip = params.defaultProtocolStack.internetProtocol as? NWProtocolIP.Options { ip.version = .v4 }
         let conn = NWConnection(to: endpoint, using: params)
         return await withCheckedContinuation { (cont: CheckedContinuation<String?, Never>) in
-            let lock = NSLock()
-            var done = false
-            func finish(_ v: String?) {
-                lock.lock(); defer { lock.unlock() }
-                if done { return }
-                done = true
+            let once = Once()
+            @Sendable func finish(_ v: String?) {
+                guard once.claim() else { return }
                 conn.cancel()
                 cont.resume(returning: v)
             }
@@ -209,5 +205,17 @@ enum Subnet {
             }
         }
         return result
+    }
+}
+
+/// Lets exactly one of several racing callbacks finish a continuation.
+final class Once: @unchecked Sendable {
+    private let lock = NSLock()
+    private var done = false
+    func claim() -> Bool {
+        lock.lock(); defer { lock.unlock() }
+        if done { return false }
+        done = true
+        return true
     }
 }
