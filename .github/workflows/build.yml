@@ -1,0 +1,85 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      ipa:
+        description: Build the installable iPad app (.ipa)
+        type: boolean
+        default: true
+      screenshots:
+        description: Take simulator screenshots
+        type: boolean
+        default: true
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Tools
+        run: |
+          xcodebuild -version
+          brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build (simulator)
+        if: ${{ github.event_name == 'push' || inputs.screenshots }}
+        run: |
+          xcodebuild -project PCDashboard.xcodeproj -scheme PCDashboard -configuration Debug \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO build > build-sim.log 2>&1 \
+            || { grep -E "error:|fatal" build-sim.log | sort -u | head -120; exit 1; }
+          grep -E "warning:" build-sim.log | grep -v "deprecated" | sort -u | head -40 || true
+          echo "Simulator build OK"
+
+      - name: Screenshots
+        if: ${{ github.event_name == 'push' || inputs.screenshots }}
+        run: bash Scripts/ci_screens.sh
+
+      - name: Build (iPad, unsigned)
+        if: ${{ inputs.ipa || contains(github.event.head_commit.message, '[ipa]') }}
+        run: |
+          xcodebuild -project PCDashboard.xcodeproj -scheme PCDashboard -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" build > build-device.log 2>&1 \
+            || { grep -E "error:|fatal" build-device.log | sort -u | head -120; exit 1; }
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-iphoneos/PCDashboard.app Payload/
+          zip -qry PCDashboard.ipa Payload
+          ls -la PCDashboard.ipa
+
+      - name: Upload screenshots
+        if: ${{ always() && (github.event_name == 'push' || inputs.screenshots) }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots
+          path: shots/
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Upload app
+        if: ${{ inputs.ipa || contains(github.event.head_commit.message, '[ipa]') }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: PCDashboard-ipa
+          path: PCDashboard.ipa
+          retention-days: 14
+
+      - name: Upload logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs
+          path: "*.log"
+          retention-days: 5
