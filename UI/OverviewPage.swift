@@ -150,26 +150,71 @@ struct CPUHero: View {
 
     var body: some View {
         let s = store.snap ?? Snapshot()
+        Card(title: "Processor", trailing: Interpret.shortCPU(s.cpu.name), stage: true) {
+            GeometryReader { g in
+                if Theme.style == .apex {
+                    apex(s, g.size)
+                } else {
+                    standard(s, g.size)
+                }
+            }
+        }
+    }
+
+    /// The big number and its vital signs on the left; the look's object over the thread bars on the right.
+    private func standard(_ s: Snapshot, _ size: CGSize) -> some View {
+        let side = max(60, min(size.width * 0.38, size.height - 56))
+        let big = min(92, max(56, size.height * 0.42))
+        return HStack(alignment: .top, spacing: 16) {
+            VStack(alignment: .leading, spacing: 12) {
+                BigNumber(value: Fmt.pct(s.cpu.load), unit: "%", size: big, solid: true)
+                stats(s)
+                Sparkline(values: store.recent(120, \.cpu), maxValue: 100)
+                    .frame(maxHeight: .infinity)
+                    .frame(minHeight: 18)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            VStack(spacing: 8) {
+                HeroObject()
+                    .frame(width: side, height: side)
+                CoreBars(cores: s.cpu.cores, height: max(24, size.height - side - 8))
+            }
+            .frame(width: side)
+        }
+    }
+
+    /// Apex: the rev counter is the readout.
+    private func apex(_ s: Snapshot, _ size: CGSize) -> some View {
+        let side = max(80, min(size.height, size.width * 0.46))
+        return HStack(alignment: .center, spacing: 20) {
+            ZStack {
+                Tachometer(value: s.cpu.load ?? 0)
+                VStack(spacing: 0) {
+                    BigNumber(value: Fmt.pct(s.cpu.load), size: side * 0.30)
+                    Eyebrow("Load %", color: Theme.text3)
+                }
+                .offset(y: side * 0.20)
+            }
+            .frame(width: side, height: side)
+            VStack(alignment: .leading, spacing: 10) {
+                stats(s)
+                CoreBars(cores: s.cpu.cores, height: max(24, size.height * 0.30))
+                Sparkline(values: store.recent(120, \.cpu), maxValue: 100)
+                    .frame(maxHeight: .infinity)
+                    .frame(minHeight: 16)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private func stats(_ s: Snapshot) -> some View {
         let f = store.settings.fahrenheit
         let level = Fmt.level(s.cpu.temp, .cpu)
-        Card(title: "Processor", trailing: Interpret.shortCPU(s.cpu.name)) {
-            HStack(alignment: .bottom, spacing: 22) {
-                VStack(alignment: .leading, spacing: 14) {
-                    BigNumber(value: Fmt.pct(s.cpu.load), unit: "%", size: 92)
-                    HStack(spacing: 26) {
-                        MiniStat(label: "Clock", value: Fmt.ghz(s.cpu.mhz), unit: "GHz")
-                        MiniStat(label: "Temp", value: Fmt.tempValue(s.cpu.temp, fahrenheit: f).map { String($0) } ?? "--",
-                                 unit: f ? "°F" : "°C", color: level >= 2 ? Theme.levelColor(level) : Theme.ivory)
-                        MiniStat(label: "Power", value: Fmt.watts(s.cpu.power), unit: "W")
-                    }
-                }
-                .layoutPriority(1)
-                CoreBars(cores: s.cpu.cores)
-                    .frame(maxWidth: 220)
-            }
-            Sparkline(values: store.recent(120, \.cpu), maxValue: 100)
-                .frame(maxHeight: .infinity)
-                .frame(minHeight: 30)
+        return HStack(spacing: 22) {
+            MiniStat(label: "Clock", value: Fmt.ghz(s.cpu.mhz), unit: "GHz")
+            MiniStat(label: "Temp", value: Fmt.tempValue(s.cpu.temp, fahrenheit: f).map { String($0) } ?? "--",
+                     unit: f ? "°F" : "°C", color: level >= 2 ? Theme.levelColor(level) : Theme.ivory)
+            MiniStat(label: "Power", value: Fmt.watts(s.cpu.power), unit: "W")
         }
     }
 }
@@ -177,9 +222,10 @@ struct CPUHero: View {
 /// One thin bar per CPU thread, like organ pipes.
 struct CoreBars: View {
     var cores: [Double]
+    var height: CGFloat = 118
 
     var body: some View {
-        VStack(alignment: .trailing, spacing: 8) {
+        VStack(alignment: .trailing, spacing: 6) {
             GeometryReader { g in
                 let n = max(1, cores.count)
                 let gap: CGFloat = n > 24 ? 2 : 3
@@ -197,9 +243,11 @@ struct CoreBars: View {
                 }
                 .animation(.smooth(duration: 0.7), value: cores)
             }
-            Eyebrow("\(cores.count) threads", color: Theme.text3)
+            if height >= 70 {
+                Eyebrow("\(cores.count) threads", color: Theme.text3)
+            }
         }
-        .frame(height: 118)
+        .frame(height: height)
     }
 }
 
@@ -273,8 +321,8 @@ struct Artwork: View {
         }
         .frame(width: size, height: size)
         .aspectRatio(1, contentMode: .fit)
-        .clipShape(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 1))
+        .clipShape(Theme.box)
+        .overlay(Theme.box.strokeBorder(Theme.hairline, lineWidth: 1))
         .id(store.artKey ?? "none")
     }
 }
@@ -535,7 +583,11 @@ struct SystemCard: View {
             VStack(spacing: 9) {
                 StatRow(label: "Up for", value: Fmt.uptime(s.uptime))
                 if let p = s.power { StatRow(label: "Power draw", value: Fmt.watts(p), unit: "W") }
-                ForEach(s.fans.prefix(2)) { f in
+                if store.energyWh > 0 {
+                    let e = Fmt.energy(store.energyWh)
+                    StatRow(label: "Energy used", value: e.0, unit: e.1)
+                }
+                ForEach(s.fans.prefix(store.energyWh > 0 ? 1 : 2)) { f in
                     StatRow(label: f.name, value: String(Int(f.rpm)), unit: "RPM")
                 }
                 if let b = s.battery {

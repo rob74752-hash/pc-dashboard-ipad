@@ -12,8 +12,8 @@ struct MusicPage: View {
                     .frame(width: g.size.width, height: g.size.height)
                 if let m = store.media {
                     if landscape {
-                        HStack(spacing: 56) {
-                            ArtStage(side: min(g.size.height - 190, g.size.width * 0.40))
+                        HStack(spacing: 40) {
+                            ArtStage(side: min(g.size.height - 190, g.size.width * 0.36))
                             Controls(media: m)
                                 .frame(maxWidth: 440)
                         }
@@ -42,9 +42,11 @@ struct MusicPage: View {
 struct Backdrop: View {
     @Environment(Store.self) private var store
 
+    private var open: Bool { Theme.style == .glass || Theme.style == .cyber || Theme.style == .molten }
+
     var body: some View {
         ZStack {
-            (Theme.style == .glass ? Color.clear : Theme.canvas)
+            (open ? Color.clear : Theme.canvas)
                 .overlay {
                     if let img = store.art, Theme.style != .paper {
                         Image(uiImage: img)
@@ -58,31 +60,43 @@ struct Backdrop: View {
                 .clipped()
             RadialGradient(colors: [store.artTint.opacity(Theme.style == .paper ? 0 : 0.16), .clear], center: .init(x: 0.28, y: 0.5),
                            startRadius: 10, endRadius: 620)
-            LinearGradient(colors: [Theme.canvas.opacity(0.0), Theme.canvas.opacity(Theme.style == .glass ? 0.35 : 0.75)], startPoint: .top, endPoint: .bottom)
+            LinearGradient(colors: [Theme.canvas.opacity(0.0), Theme.canvas.opacity(open ? 0.35 : 0.75)], startPoint: .top, endPoint: .bottom)
         }
         .ignoresSafeArea()
         .animation(.easeInOut(duration: 0.8), value: store.artKey)
     }
 }
 
-/// Artwork on a gold-framed plinth with a warm glow and a faint reflection.
+/// The artwork as a physical sleeve: it leans slowly in 3D, glows in its own colour, and a
+/// record turns behind it while the music plays.
 struct ArtStage: View {
     @Environment(Store.self) private var store
     var side: CGFloat
+    @State private var lean = false
 
     var body: some View {
         let playing = store.media?.isPlaying ?? false
+        let fx = store.settings.effects
+        let angle: Double = fx ? (lean ? 9 : -9) : 0
         VStack(spacing: 0) {
-            Artwork(size: side)
-                .shadow(color: store.artTint.opacity(0.45), radius: 50, y: 18)
-                .overlay(
-                    RoundedRectangle(cornerRadius: Theme.radius + 8, style: .continuous)
-                        .strokeBorder(Theme.gold.opacity(0.35), lineWidth: 1)
-                        .padding(-8)
-                )
-                .scaleEffect(playing ? 1 : 0.94)
-                .animation(.spring(response: 0.6, dampingFraction: 0.8), value: playing)
-            // Reflection on the black "floor"
+            ZStack {
+                Vinyl(tint: store.artTint, playing: playing && fx)
+                    .frame(width: side * 0.92, height: side * 0.92)
+                    .offset(x: playing ? side * 0.30 : side * 0.06)
+                    .animation(.spring(response: 0.9, dampingFraction: 0.8), value: playing)
+                Artwork(size: side)
+                    .shadow(color: store.artTint.opacity(Theme.style == .paper ? 0.25 : 0.55), radius: 50, y: 18)
+                    .overlay(
+                        Theme.box
+                            .strokeBorder(Theme.gold.opacity(0.35), lineWidth: 1)
+                            .padding(-8)
+                    )
+            }
+            .scaleEffect(playing ? 1 : 0.94)
+            .rotation3DEffect(.degrees(angle), axis: (x: 0.12, y: 1, z: 0), perspective: 0.55)
+            .animation(.spring(response: 0.6, dampingFraction: 0.8), value: playing)
+            .animation(.easeInOut(duration: 7).repeatForever(autoreverses: true), value: lean)
+            // Reflection on the floor
             Artwork(size: side)
                 .scaleEffect(x: 1, y: -1)
                 .frame(height: side * 0.16, alignment: .top)
@@ -92,6 +106,8 @@ struct ArtStage: View {
                 .scaleEffect(playing ? 1 : 0.94)
                 .allowsHitTesting(false)
         }
+        .padding(.trailing, side * 0.16)
+        .onAppear { lean = true }
     }
 }
 
@@ -331,8 +347,8 @@ struct Sources: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 8)
             .frame(maxWidth: 220, alignment: .leading)
-            .background(on ? Theme.fill : Color.clear, in: RoundedRectangle(cornerRadius: Theme.radius))
-            .overlay(RoundedRectangle(cornerRadius: Theme.radius).strokeBorder(on ? Color.clear : Theme.hairline, lineWidth: 1))
+            .background(on ? Theme.fill : Color.clear, in: Theme.box)
+            .overlay(Theme.box.strokeBorder(on ? Color.clear : Theme.hairline, lineWidth: 1))
         }
         .buttonStyle(.plain)
     }

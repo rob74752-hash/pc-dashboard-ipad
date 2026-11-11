@@ -1,4 +1,6 @@
 import SwiftUI
+import UIKit
+import UIKit.UIGestureRecognizerSubclass
 
 struct RootView: View {
     @Environment(Store.self) private var store
@@ -17,7 +19,12 @@ struct RootView: View {
         // Changing style or colour rebuilds every view with the new look.
         .id(store.settings.style.rawValue + "." + store.settings.accent.rawValue)
         .animation(.easeInOut(duration: 0.35), value: store.current == nil || store.showConnect)
-        .background(StyleBackground(design: Design.make(store.settings.style, store.settings.accent)))
+        .background(StyleBackground(design: Design.make(store.settings.style, store.settings.accent), live: store.settings.effects))
+        .overlay {
+            // Terminal and Cyberpunk: the faint lines of a display, over everything.
+            if Design.make(store.settings.style, store.settings.accent).scan { Scanlines() }
+        }
+        .background(TouchWatcher { store.touched() })
         .statusBarHidden(true)
         .persistentSystemOverlays(.hidden)
         .sheet(isPresented: $store.showSettings) {
@@ -37,10 +44,12 @@ struct Dashboard: View {
     var body: some View {
         VStack(spacing: 0) {
             TopBar()
+            if Theme.style == .cyber { CyberStrip() }
             StatusBanner()
             ZStack {
                 switch store.page {
                 case .overview: OverviewPage()
+                case .core: CorePage()
                 case .performance: PerformancePage()
                 case .music: MusicPage()
                 case .clock: ClockPage()
@@ -241,5 +250,85 @@ struct Mark: View {
             let dot = CGRect(x: c.x - 1.8, y: c.y - 1.8, width: 3.6, height: 3.6)
             ctx.fill(Path(ellipseIn: dot), with: .color(Theme.aged))
         }
+    }
+}
+
+/// Cyberpunk: a thin strip of scrolling system readouts under the top bar.
+struct CyberStrip: View {
+    @Environment(Store.self) private var store
+
+    var body: some View {
+        let s = store.snap ?? Snapshot()
+        let parts = [
+            String(format: "CPU %03d%%", Int((s.cpu.load ?? 0).rounded())),
+            String(format: "GPU %03d%%", Int((s.gpus.first?.load ?? 0).rounded())),
+            String(format: "MEM %03d%%", Int((s.mem.pct ?? 0).rounded())),
+            String(format: "CORE TEMP %03dC", Int((s.cpu.temp ?? 0).rounded())),
+            String(format: "DRAW %04dW", Int((s.power ?? 0).rounded())),
+            "UPLINK " + (store.link == .live ? "STABLE" : "LOST"),
+            "STATUS " + store.health.word.uppercased(),
+            "HOST " + s.host.uppercased(),
+        ]
+        HStack(spacing: 0) {
+            Text("SYS")
+                .font(Theme.d.text(10.5, .bold))
+                .tracking(2)
+                .foregroundStyle(Theme.onFill)
+                .padding(.horizontal, 12)
+                .frame(maxHeight: .infinity)
+                .background(Theme.fill)
+            Ticker(text: parts.joined(separator: "   //   ") + "   //   ", color: Theme.second.opacity(0.9), live: store.settings.effects)
+                .clipped()
+        }
+        .frame(height: 20)
+        .overlay(alignment: .bottom) { Rectangle().fill(Theme.hairline).frame(height: 1) }
+    }
+}
+
+// MARK: - Noticing touches (for the idle screen and page cycling)
+
+final class AnyTouchRecognizer: UIGestureRecognizer {
+    var onTouch: (() -> Void)?
+
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
+        onTouch?()
+        state = .failed
+    }
+}
+
+final class WatcherView: UIView {
+    var onTouch: (() -> Void)?
+    private weak var installedOn: UIWindow?
+    private var recognizer: AnyTouchRecognizer?
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        if let r = recognizer, let w = installedOn { w.removeGestureRecognizer(r) }
+        recognizer = nil
+        guard let window else { return }
+        let r = AnyTouchRecognizer(target: nil, action: nil)
+        r.cancelsTouchesInView = false
+        r.delaysTouchesBegan = false
+        r.delaysTouchesEnded = false
+        r.onTouch = { [weak self] in self?.onTouch?() }
+        window.addGestureRecognizer(r)
+        recognizer = r
+        installedOn = window
+    }
+}
+
+/// Sits invisibly in the window and reports every touch without getting in its way.
+struct TouchWatcher: UIViewRepresentable {
+    var onTouch: () -> Void
+
+    func makeUIView(context: Context) -> WatcherView {
+        let v = WatcherView()
+        v.isUserInteractionEnabled = false
+        v.onTouch = onTouch
+        return v
+    }
+
+    func updateUIView(_ v: WatcherView, context: Context) {
+        v.onTouch = onTouch
     }
 }

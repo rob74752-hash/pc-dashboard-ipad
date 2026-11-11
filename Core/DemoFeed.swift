@@ -33,8 +33,15 @@ final class DemoFeed {
         let now = Date()
         for i in stride(from: 1800, to: 0, by: -1) {
             let t = now.addingTimeInterval(-Double(i))
-            store.record(snapshot(t.timeIntervalSince(start)), at: t)
+            store.record(snapshot(t.timeIntervalSince(start)), at: t, live: false)
         }
+        // A little believable history for the event log.
+        store.energyWh = 412
+        store.log(.good, "Connected to STUDIO-PC", at: now.addingTimeInterval(-1680))
+        store.log(.warn, "Processor flat out at 97%", at: now.addingTimeInterval(-1130))
+        store.log(.warn, "RTX 4070 SUPER reached 86°", at: now.addingTimeInterval(-1090))
+        store.log(.good, "RTX 4070 SUPER cooled down", at: now.addingTimeInterval(-860))
+        store.log(.good, "Processor load back to normal", at: now.addingTimeInterval(-840))
     }
 
     private func tick(_ store: Store) {

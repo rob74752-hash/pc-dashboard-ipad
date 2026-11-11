@@ -14,7 +14,7 @@ struct ClockPage: View {
                     Eyebrow(Fmt.dateLine(ctx.date))
                         .padding(.bottom, 6)
                     HStack(alignment: .firstTextBaseline, spacing: size * 0.08) {
-                        BigNumber(value: c.hm, size: size)
+                        BigNumber(value: c.hm, size: size, solid: true)
                         VStack(alignment: .leading, spacing: size * 0.08) {
                             Text(c.s)
                                 .font(.display(size * 0.16, weight: .regular).monospacedDigit())
@@ -100,7 +100,7 @@ struct NowPlayingStrip: View {
                 RingButton(symbol: "forward.fill", size: 40, enabled: m.can.next) { store.mediaAction("next") }
             }
             .padding(14)
-            .overlay(RoundedRectangle(cornerRadius: Theme.radius).strokeBorder(Theme.hairline, lineWidth: 1))
+            .overlay(Theme.box.strokeBorder(Theme.hairline, lineWidth: 1))
         }
     }
 }

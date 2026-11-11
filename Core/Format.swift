@@ -59,6 +59,13 @@ enum Fmt {
         return String(Int(w.rounded()))
     }
 
+    /// Energy used: ("412", "Wh") or ("1.24", "kWh")
+    static func energy(_ wh: Double) -> (String, String) {
+        if wh >= 1000 { return (String(format: "%.2f", wh / 1000), "kWh") }
+        if wh >= 10 { return (String(Int(wh.rounded())), "Wh") }
+        return (String(format: "%.1f", wh), "Wh")
+    }
+
     static func uptime(_ ms: Double?) -> String {
         guard let ms, ms.isFinite, ms > 0 else { return "--" }
         let s = Int(ms / 1000)

@@ -16,7 +16,9 @@ struct AppSettings: Codable, Equatable {
     var nightDim = false
     var historyMinutes = 5
     var style: StyleID = .gilded
-    var accent: AccentID = .gold
+    var accent: AccentID = .auto
+    var cyclePages = false
+    var idlePage = "off"   // "off", "clock" or "core": where to rest after a few minutes untouched
 
     init() {}
     // Older saved settings simply miss the newer keys.
@@ -29,23 +31,73 @@ struct AppSettings: Codable, Equatable {
         nightDim = c.val(Bool.self, .nightDim) ?? false
         historyMinutes = c.val(Int.self, .historyMinutes) ?? 5
         style = c.val(StyleID.self, .style) ?? .gilded
-        accent = c.val(AccentID.self, .accent) ?? .gold
+        accent = c.val(AccentID.self, .accent) ?? .auto
+        cyclePages = c.val(Bool.self, .cyclePages) ?? false
+        idlePage = c.val(String.self, .idlePage) ?? "off"
     }
 }
 
 enum LinkState: Equatable { case idle, connecting, starting, live, offline }
 
 enum Page: String, CaseIterable, Identifiable {
-    case overview, performance, music, clock
+    case overview, core, performance, music, clock
     var id: String { rawValue }
     var title: String {
         switch self {
         case .overview: return "Overview"
+        case .core: return "Core"
         case .performance: return "Performance"
         case .music: return "Music"
         case .clock: return "Clock"
         }
     }
+}
+
+/// Something worth noting that happened on the PC (shown in the event log).
+struct LogEvent: Identifiable {
+    enum Kind { case info, good, warn, alert, music }
+    var id = UUID()
+    var t: Date
+    var kind: Kind
+    var text: String
+
+    var symbol: String {
+        switch kind {
+        case .info: return "circle.fill"
+        case .good: return "checkmark.circle.fill"
+        case .warn: return "exclamationmark.triangle.fill"
+        case .alert: return "flame.fill"
+        case .music: return "music.note"
+        }
+    }
+}
+
+/// The highest value seen since the app was opened.
+struct Peak {
+    var value: Double
+    var at: Date
+}
+
+struct Peaks {
+    var cpu: Peak?
+    var gpu: Peak?
+    var tcpu: Peak?
+    var tgpu: Peak?
+    var rx: Peak?
+    var power: Peak?
+
+    static func raise(_ p: inout Peak?, _ v: Double?, _ at: Date) {
+        guard let v, v.isFinite else { return }
+        if let old = p, old.value >= v { return }
+        p = Peak(value: v, at: at)
+    }
+}
+
+/// One line that sums up how the PC is doing.
+struct Health {
+    var score: Int
+    var word: String
+    var level: Int   // 0 fine, 1 busy, 2 hot, 3 critical
 }
 
 /// Everything the screens show, kept live by polling the PC once a second.
@@ -67,6 +119,9 @@ final class Store {
     var showSettings = false
     var showConnect = false
     var volumeDragging = false
+    var events: [LogEvent] = []
+    var peaks = Peaks()
+    var energyWh = 0.0
 
     let demo: Bool
 
@@ -81,6 +136,13 @@ final class Store {
     @ObservationIgnored private var dimmedFrom: CGFloat?
     @ObservationIgnored private var nightTimer: Timer?
     @ObservationIgnored private var demoFeed: DemoFeed?
+    @ObservationIgnored private var lastTouch = Date()
+    @ObservationIgnored private var lastCycle = Date()
+    @ObservationIgnored private var rested = false
+    @ObservationIgnored private var houseTimer: Timer?
+    @ObservationIgnored private var busyFor = 0
+    @ObservationIgnored private var flagged: Set<String> = []
+    @ObservationIgnored private var lastSampleAt: Date?
 
     private static let settingsKey = "settings.v1", pcsKey = "pcs.v1", currentKey = "current.v1"
 
@@ -124,6 +186,38 @@ final class Store {
             Task { @MainActor in self?.checkNight() }
         }
         checkNight()
+        houseTimer?.invalidate()
+        houseTimer = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.housekeeping() }
+        }
+    }
+
+    /// Any touch on the screen counts as "someone is using it".
+    func touched() {
+        lastTouch = Date()
+        lastCycle = Date()
+        rested = false
+    }
+
+    /// Cycle through the pages, or settle on a resting page, when nobody is touching the iPad.
+    private func housekeeping() {
+        guard !demo, current != nil, !showSettings, !showConnect else { return }
+        let idle = Date().timeIntervalSince(lastTouch)
+        if settings.cyclePages {
+            if idle > 20, Date().timeIntervalSince(lastCycle) > 20 {
+                lastCycle = Date()
+                let all = Page.allCases
+                if let i = all.firstIndex(of: page) { page = all[(i + 1) % all.count] }
+            }
+        } else if settings.idlePage != "off", !rested, idle > 180, let p = Page(rawValue: settings.idlePage) {
+            rested = true
+            if page != p { page = p }
+        }
+    }
+
+    func log(_ kind: LogEvent.Kind, _ text: String, at date: Date = Date()) {
+        events.append(LogEvent(t: date, kind: kind, text: text))
+        if events.count > 40 { events.removeFirst(events.count - 40) }
     }
 
     private func checkNight() {
@@ -151,6 +245,7 @@ final class Store {
         savePCs()
         snap = nil; media = nil; audio = nil; samples = []; art = nil; artKey = nil
         lastTime = 0; failures = 0
+        events = []; peaks = Peaks(); energyWh = 0; flagged = []; busyFor = 0; lastSampleAt = nil
         link = .connecting
         showConnect = false
         startPolling()
@@ -209,12 +304,18 @@ final class Store {
         } catch {
             guard !Task.isCancelled else { return }
             failures += 1
-            if failures >= 3 { link = .offline }
+            if failures >= 3 {
+                if link != .offline { log(.alert, "Lost contact with " + pc.name) }
+                link = .offline
+            }
         }
     }
 
     private func apply(_ p: API.Payload) {
         snap = p.snap
+        if link != .live {
+            log(.good, (link == .offline ? "Back in contact with " : "Connected to ") + p.snap.host)
+        }
         link = .live
         if p.snap.host != current?.name, var pc = current, !p.snap.host.isEmpty {
             pc.name = p.snap.host
@@ -230,11 +331,80 @@ final class Store {
         if Date() > volumeHold, !volumeDragging { audio = p.audio }
     }
 
-    func record(_ s: Snapshot, at date: Date = Date()) {
+    /// `live` is false while the demo back-fills old history, so that doesn't count as news.
+    func record(_ s: Snapshot, at date: Date = Date(), live: Bool = true) {
         samples.append(Sample(t: date, cpu: s.cpu.load, gpu: s.gpus.first?.load, mem: s.mem.pct,
                               rx: s.net.rx, tx: s.net.tx, rd: s.disk.read, wr: s.disk.write,
                               tcpu: s.cpu.temp, tgpu: s.gpus.first?.temp))
         if samples.count > 1800 { samples.removeFirst(samples.count - 1800) }
+
+        Peaks.raise(&peaks.cpu, s.cpu.load, date)
+        Peaks.raise(&peaks.gpu, s.gpus.first?.load, date)
+        Peaks.raise(&peaks.tcpu, s.cpu.temp, date)
+        Peaks.raise(&peaks.tgpu, s.gpus.first?.temp, date)
+        Peaks.raise(&peaks.rx, s.net.rx, date)
+        Peaks.raise(&peaks.power, s.power, date)
+        guard live else { return }
+
+        // Energy: watts times the time since the last reading.
+        if let p = s.power, let before = lastSampleAt {
+            let dt = min(5, max(0, date.timeIntervalSince(before)))
+            energyWh += p * dt / 3600
+        }
+        lastSampleAt = date
+        notice(s)
+    }
+
+    /// Say something once when it starts (and once when it clears), not every second.
+    private func flag(_ key: String, on: Bool, _ kind: LogEvent.Kind, _ text: String, cleared: String? = nil) {
+        if on, !flagged.contains(key) {
+            flagged.insert(key)
+            log(kind, text)
+        } else if !on, flagged.contains(key) {
+            flagged.remove(key)
+            if let cleared { log(.good, cleared) }
+        }
+    }
+
+    /// Turn changes in the readings into lines in the event log.
+    private func notice(_ s: Snapshot) {
+        let cpu = s.cpu.load ?? 0
+        let mem = s.mem.pct ?? 0
+        if cpu >= 90 { busyFor += 1 } else if cpu < 70 { busyFor = 0 }
+        flag("cpu", on: busyFor >= 8, .warn, "Processor flat out at " + Fmt.pct(cpu) + "%",
+             cleared: "Processor load back to normal")
+        flag("mem", on: mem >= 90, .warn, "Memory nearly full (" + Fmt.pct(mem) + "%)", cleared: "Memory freed up")
+        for t in s.temps {
+            let level = Fmt.level(t.celsius, t.kind)
+            flag("hot." + t.name, on: level >= 2, level >= 3 ? .alert : .warn,
+                 t.name + " reached " + Fmt.temp(t.celsius, fahrenheit: settings.fahrenheit),
+                 cleared: t.name + " cooled down")
+        }
+        for d in s.disk.drives {
+            flag("full." + d.name, on: d.usedPct >= 95, .warn, "Drive " + d.name + " is almost full")
+        }
+    }
+
+    /// One line that sums up how the PC is doing.
+    var health: Health {
+        guard let s = snap else { return Health(score: 0, word: "Waiting for the PC", level: 0) }
+        if link == .offline { return Health(score: 0, word: "Out of contact", level: 3) }
+        let cpu = s.cpu.load ?? 0
+        let mem = s.mem.pct ?? 0
+        let worst = s.temps.map { Fmt.level($0.celsius, $0.kind) }.max() ?? 0
+        let heat: [Double] = [0, 8, 22, 45]
+        var score = 100.0
+        score -= max(0, cpu - 60) * 0.5
+        score -= max(0, mem - 70) * 0.6
+        score -= heat[max(0, min(3, worst))]
+        if s.disk.drives.contains(where: { $0.usedPct >= 95 }) { score -= 6 }
+        let sc = Int(max(0, min(100, score)).rounded())
+        if worst >= 3 { return Health(score: sc, word: "Critical heat", level: 3) }
+        if worst == 2 { return Health(score: sc, word: "Running hot", level: 2) }
+        if cpu >= 85 { return Health(score: sc, word: "Under heavy load", level: 1) }
+        if mem >= 90 { return Health(score: sc, word: "Memory nearly full", level: 1) }
+        if cpu >= 50 { return Health(score: sc, word: "Working hard", level: 0) }
+        return Health(score: sc, word: "All systems nominal", level: 0)
     }
 
     /// The last `minutes` of history, thinned to at most `maxPoints` for drawing.
@@ -250,6 +420,7 @@ final class Store {
 
     private func setMedia(_ m: MediaInfo?) {
         let trackChanged = m?.id != media?.id || m?.title != media?.title || m?.artist != media?.artist
+        if trackChanged, let m, !m.title.isEmpty { logTrack(m) }
         if media != m { media = m }
         guard let key = m?.art else {
             if m == nil || trackChanged { art = nil; artKey = nil }
@@ -380,8 +551,15 @@ final class Store {
         snap = s
         if link != .offline { link = .live }
         record(s)
-        if Date() > mediaHold { media = m }
+        if Date() > mediaHold {
+            if let m, m.title != media?.title, !m.title.isEmpty { logTrack(m) }
+            media = m
+        }
         if Date() > volumeHold, !volumeDragging { audio = a }
+    }
+
+    private func logTrack(_ m: MediaInfo) {
+        log(.music, m.artist.isEmpty ? "Now playing: " + m.title : "Now playing: " + m.title + " by " + m.artist)
     }
 
     func demoSetArt(_ image: UIImage?, key: String?) {

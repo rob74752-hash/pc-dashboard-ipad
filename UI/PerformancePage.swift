@@ -23,6 +23,17 @@ struct PerformancePage: View {
 
                     ThreadHeat()
 
+                    if wide {
+                        HStack(alignment: .top, spacing: Theme.gap) {
+                            RecordsCard()
+                            EventsCard()
+                        }
+                        .fixedSize(horizontal: false, vertical: true)
+                    } else {
+                        RecordsCard()
+                        EventsCard()
+                    }
+
                     let columns = Array(repeating: GridItem(.flexible(), spacing: Theme.gap), count: wide ? 2 : 1)
                     LazyVGrid(columns: columns, spacing: Theme.gap) {
                         MetricChart(title: "Processor", unit: "%", maxValue: 100,
@@ -82,8 +93,8 @@ struct RangePicker: View {
                 .buttonStyle(.plain)
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: Theme.radius, style: .continuous).strokeBorder(Theme.hairline, lineWidth: 1))
+        .clipShape(Theme.box)
+        .overlay(Theme.box.strokeBorder(Theme.hairline, lineWidth: 1))
         .animation(.easeOut(duration: 0.2), value: store.settings.historyMinutes)
     }
 }
@@ -292,5 +303,96 @@ struct MetricChart: View {
         .padding(.vertical, 7)
         .background(Theme.canvas, in: RoundedRectangle(cornerRadius: Theme.radius))
         .overlay(RoundedRectangle(cornerRadius: Theme.radius).strokeBorder(Theme.gold.opacity(0.6), lineWidth: 1))
+    }
+}
+
+/// The highest readings since the app was opened.
+struct RecordsCard: View {
+    @Environment(Store.self) private var store
+
+    var body: some View {
+        let p = store.peaks
+        let f = store.settings.fahrenheit
+        let down = Fmt.bits(p.rx?.value)
+        let deg = f ? "°F" : "°C"
+        Card(title: "Session records", trailing: "since you opened the app") {
+            Grid(alignment: .leading, horizontalSpacing: 22, verticalSpacing: 16) {
+                GridRow {
+                    cell("Processor peak", Fmt.pct(p.cpu?.value), "%", p.cpu?.at)
+                    cell("Graphics peak", Fmt.pct(p.gpu?.value), "%", p.gpu?.at)
+                    cell("Most power", Fmt.watts(p.power?.value), "W", p.power?.at)
+                }
+                GridRow {
+                    cell("Hottest processor", degrees(p.tcpu?.value, f), deg, p.tcpu?.at)
+                    cell("Hottest graphics", degrees(p.tgpu?.value, f), deg, p.tgpu?.at)
+                    cell("Fastest download", p.rx == nil ? "--" : down.0, down.1, p.rx?.at)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func degrees(_ c: Double?, _ f: Bool) -> String {
+        guard let v = Fmt.tempValue(c, fahrenheit: f) else { return "--" }
+        return String(v)
+    }
+
+    private func cell(_ label: String, _ value: String, _ unit: String, _ at: Date?) -> some View {
+        let when: String = at.map { "at " + $0.formatted(date: .omitted, time: .shortened) } ?? " "
+        return VStack(alignment: .leading, spacing: 4) {
+            Eyebrow(label, color: Theme.text3)
+            BigNumber(value: value, unit: unit, size: 30)
+            Text(when)
+                .font(Theme.d.text(11).monospacedDigit())
+                .foregroundStyle(Theme.text3)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// What happened lately: heat, heavy load, songs, lost contact.
+struct EventsCard: View {
+    @Environment(Store.self) private var store
+
+    var body: some View {
+        let recent = Array(store.events.suffix(6).reversed())
+        Card(title: "Event log", trailing: recent.isEmpty ? nil : "\(store.events.count) noted") {
+            if recent.isEmpty {
+                Text("Nothing to report yet. Heat, heavy load and song changes show up here.")
+                    .font(.small)
+                    .foregroundStyle(Theme.text3)
+            } else {
+                VStack(alignment: .leading, spacing: 9) {
+                    ForEach(recent) { e in
+                        HStack(alignment: .firstTextBaseline, spacing: 10) {
+                            Image(systemName: e.symbol)
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(color(e.kind))
+                                .frame(width: 14)
+                            Text(e.text)
+                                .font(.ui)
+                                .foregroundStyle(Theme.ivory)
+                                .lineLimit(1)
+                            Spacer(minLength: 8)
+                            Text(e.t.formatted(date: .omitted, time: .shortened))
+                                .font(.small.monospacedDigit())
+                                .foregroundStyle(Theme.text3)
+                        }
+                    }
+                }
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    private func color(_ kind: LogEvent.Kind) -> Color {
+        switch kind {
+        case .alert: return Theme.critical
+        case .warn: return Theme.hot
+        case .music: return Theme.gold
+        case .good: return Theme.signal
+        case .info: return Theme.text3
+        }
     }
 }
