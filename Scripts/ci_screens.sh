@@ -29,8 +29,11 @@ xcrun simctl bootstatus "$UDID" -b
 xcrun simctl install "$UDID" "$APP"
 date
 
+# Scripts/only.txt (optional): a pattern; only screenshots whose name matches are taken.
+ONLY=$(tr -d '\r\n' < Scripts/only.txt 2>/dev/null || true)
 shot() {
   local name="$1"; shift
+  if [ -n "$ONLY" ] && ! echo "$name" | grep -Eq "$ONLY"; then return; fi
   xcrun simctl launch "$UDID" "$BUNDLE" -demo "$@" > /dev/null
   sleep "${WAIT:-7}"
   xcrun simctl io "$UDID" screenshot "shots/$name.png" > /dev/null 2>&1
@@ -64,6 +67,8 @@ shot reactor-ice $L -page core -style reactor -accent cyan
 shot portrait-molten $P -page overview -style molten
 shot portrait-core $P -page core -style reactor
 date
+
+if [ -n "$ONLY" ]; then ls -la shots; exit 0; fi
 
 # A short clip of the overview to check the gold shimmer and live numbers.
 xcrun simctl io "$UDID" recordVideo --codec=h264 --force "shots/overview.mp4" > /dev/null 2>&1 &

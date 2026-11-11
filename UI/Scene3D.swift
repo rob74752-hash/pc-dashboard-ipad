@@ -428,9 +428,9 @@ final class ObjectRig: NSObject, SCNSceneRendererDelegate {
 
             let disc = SCNCylinder(radius: 0.98, height: 0.002)
             disc.radialSegmentCount = 96
-            let lobe = Mat.light(i % 2 == 0 ? o.main : o.deep, intensity: 0.8)
+            // Additive: nine of these overlap, so each one is faint and they build up like petals.
+            let lobe = Mat.light(i % 2 == 0 ? o.main : o.deep, intensity: 0.075)
             lobe.blendMode = .add
-            lobe.transparency = 0.045
             lobe.isDoubleSided = true
             lobe.writesToDepthBuffer = false
             disc.materials = [lobe]
