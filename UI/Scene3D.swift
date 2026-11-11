@@ -122,6 +122,9 @@ struct SolidNumber: View {
                             Text(value)
                                 .font(Font(font as CTFont))
                                 .foregroundStyle(Color.black.opacity(0.30))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.3)
+                                .frame(width: g.size.width, height: g.size.height)
                                 .blur(radius: size * 0.05)
                                 .offset(x: size * 0.035, y: size * 0.075)
                         }
@@ -222,7 +225,7 @@ final class NumeralRig: NSObject, SCNSceneRendererDelegate {
                 scene.lightingEnvironment.intensity = 1.7
             case .ink:
                 scene.lightingEnvironment.contents = EnvMap.studio("paper", sky: UIColor(white: 1, alpha: 1), box: UIColor.white)
-                scene.lightingEnvironment.intensity = 1.2
+                scene.lightingEnvironment.intensity = 0.8
             }
         }
 
@@ -239,17 +242,17 @@ final class NumeralRig: NSObject, SCNSceneRendererDelegate {
             let front: SCNMaterial, side: SCNMaterial, bevel: SCNMaterial
             switch n.look {
             case .gold:
-                front = Mat.metal(n.main, roughness: 0.30)
-                side = Mat.metal(n.deep, roughness: 0.46)
-                bevel = Mat.metal(n.hi, roughness: 0.18)
+                front = Mat.metal(n.main, roughness: 0.21)
+                side = Mat.metal(n.deep, roughness: 0.40)
+                bevel = Mat.metal(n.hi, roughness: 0.12)
             case .chrome:
                 front = Mat.metal(UIColor(white: 0.93, alpha: 1), roughness: 0.14)
                 side = Mat.metal(UIColor(white: 0.50, alpha: 1), roughness: 0.30)
                 bevel = Mat.metal(UIColor.white, roughness: 0.08)
             case .ink:
-                front = Mat.matte(UIColor(white: 0.03, alpha: 1), roughness: 0.55)
-                side = Mat.matte(UIColor(white: 0.30, alpha: 1), roughness: 0.85)
-                bevel = Mat.matte(UIColor(white: 0.12, alpha: 1), roughness: 0.6)
+                front = Mat.matte(UIColor(white: 0.015, alpha: 1), roughness: 0.92)
+                side = Mat.matte(UIColor(white: 0.26, alpha: 1), roughness: 0.9)
+                bevel = Mat.matte(UIColor(white: 0.10, alpha: 1), roughness: 0.8)
             }
             // SCNText: front, back, extruded sides, front chamfer, back chamfer
             geo.materials = [front, side, side, bevel, side]
@@ -302,7 +305,7 @@ struct CoreObject: UIViewRepresentable {
         let solid = kind == .plasma
         v.backgroundColor = solid ? UIColor.black : UIColor.clear
         v.isOpaque = solid
-        v.antialiasingMode = .multisampling4X
+        v.antialiasingMode = solid ? .multisampling2X : .multisampling4X
         v.preferredFramesPerSecond = 30
         v.isUserInteractionEnabled = false
         context.coordinator.build(self)
@@ -371,9 +374,10 @@ final class ObjectRig: NSObject, SCNSceneRendererDelegate {
             scene.background.contents = UIColor.black
             cam.wantsHDR = true
             cam.wantsExposureAdaptation = false
-            cam.bloomIntensity = 1.5
-            cam.bloomThreshold = 0.55
-            cam.bloomBlurRadius = 14
+            cam.bloomIntensity = 0.85
+            cam.bloomThreshold = 0.72
+            cam.bloomBlurRadius = 10
+            cameraNode.position = SCNVector3(0, 0, 5.3)
             plasma(o)
         case .trefoil:
             scene.background.contents = UIColor.clear
@@ -383,6 +387,7 @@ final class ObjectRig: NSObject, SCNSceneRendererDelegate {
             trefoil(o)
         case .wire:
             scene.background.contents = UIColor.clear
+            cameraNode.position = SCNVector3(0, 0, 4.9)
             wire(o)
         }
     }
@@ -416,16 +421,16 @@ final class ObjectRig: NSObject, SCNSceneRendererDelegate {
             let torus = SCNTorus(ringRadius: 1.0 - CGFloat(i % 3) * 0.025, pipeRadius: 0.011)
             torus.ringSegmentCount = 120
             torus.pipeSegmentCount = 8
-            let rim = Mat.light(i % 3 == 0 ? o.hi : o.deep, intensity: 2.4)
+            let rim = Mat.light(i % 3 == 0 ? o.hi : o.deep, intensity: 1.1)
             torus.materials = [rim]
             glowing.append(rim)
             let ring = SCNNode(geometry: torus)
 
             let disc = SCNCylinder(radius: 0.98, height: 0.002)
             disc.radialSegmentCount = 96
-            let lobe = Mat.light(i % 2 == 0 ? o.main : o.deep, intensity: 1.0)
+            let lobe = Mat.light(i % 2 == 0 ? o.main : o.deep, intensity: 0.8)
             lobe.blendMode = .add
-            lobe.transparency = 0.11
+            lobe.transparency = 0.045
             lobe.isDoubleSided = true
             lobe.writesToDepthBuffer = false
             disc.materials = [lobe]
@@ -451,7 +456,7 @@ final class ObjectRig: NSObject, SCNSceneRendererDelegate {
             SCNVector3(0, 0, Float.pi / 2),
             SCNVector3(0, -Float.pi / 2, 0),
         ]
-        for (i, turn) in turns.enumerated() {
+        for turn in turns {
             let torus = SCNTorus(ringRadius: 0.80, pipeRadius: 0.15)
             torus.ringSegmentCount = 96
             torus.pipeSegmentCount = 36
@@ -513,7 +518,7 @@ final class ObjectRig: NSObject, SCNSceneRendererDelegate {
         glowing.append(heartMat)
         spin.addChildNode(SCNNode(geometry: heart))
 
-        let halo = SCNTorus(ringRadius: 1.22, pipeRadius: 0.007)
+        let halo = SCNTorus(ringRadius: 1.12, pipeRadius: 0.007)
         halo.ringSegmentCount = 120
         halo.materials = [Mat.light(o.main, intensity: 1.0)]
         let haloNode = SCNNode(geometry: halo)
@@ -538,7 +543,7 @@ final class ObjectRig: NSObject, SCNSceneRendererDelegate {
             for r in rings {
                 r.node.eulerAngles = SCNVector3(Float(phase * r.speed * r.dir), 0, Float(phase * r.speed * 0.4))
             }
-            let k = CGFloat(1.7 + smooth * 1.6 + sin(time * 2.2) * 0.12)
+            let k = CGFloat(0.95 + smooth * 0.75 + sin(time * 2.2) * 0.06)
             for m in glowing { m.emission.intensity = k }
         case .trefoil:
             spin.eulerAngles = SCNVector3(Float(0.42 + sin(phase * 0.21) * 0.18), Float(phase * 0.42), Float(0.2 + cos(phase * 0.17) * 0.12))

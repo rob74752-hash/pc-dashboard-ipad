@@ -318,14 +318,14 @@ struct RecordsCard: View {
         Card(title: "Session records", trailing: "since you opened the app") {
             Grid(alignment: .leading, horizontalSpacing: 22, verticalSpacing: 16) {
                 GridRow {
-                    cell("Processor peak", Fmt.pct(p.cpu?.value), "%", p.cpu?.at)
-                    cell("Graphics peak", Fmt.pct(p.gpu?.value), "%", p.gpu?.at)
+                    cell("CPU peak", Fmt.pct(p.cpu?.value), "%", p.cpu?.at)
+                    cell("GPU peak", Fmt.pct(p.gpu?.value), "%", p.gpu?.at)
                     cell("Most power", Fmt.watts(p.power?.value), "W", p.power?.at)
                 }
                 GridRow {
-                    cell("Hottest processor", degrees(p.tcpu?.value, f), deg, p.tcpu?.at)
-                    cell("Hottest graphics", degrees(p.tgpu?.value, f), deg, p.tgpu?.at)
-                    cell("Fastest download", p.rx == nil ? "--" : down.0, down.1, p.rx?.at)
+                    cell("Hottest CPU", degrees(p.tcpu?.value, f), deg, p.tcpu?.at)
+                    cell("Hottest GPU", degrees(p.tgpu?.value, f), deg, p.tgpu?.at)
+                    cell("Top download", p.rx == nil ? "--" : down.0, down.1, p.rx?.at)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)

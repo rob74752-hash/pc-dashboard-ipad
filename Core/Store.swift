@@ -122,6 +122,7 @@ final class Store {
     var events: [LogEvent] = []
     var peaks = Peaks()
     var energyWh = 0.0
+    var settingsInline = false   // screenshots only: show Settings as a full page
 
     let demo: Bool
 
@@ -542,6 +543,7 @@ final class Store {
         feed.prefill(self)
         feed.start(self)
         if args.contains("-settings") { showSettings = true }
+        if args.contains("-settingspage") { settingsInline = true }
         if args.contains("-connect") { showConnect = true }
         if args.contains("-offline") { link = .offline }
     }

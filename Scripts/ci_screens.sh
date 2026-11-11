@@ -55,8 +55,8 @@ done
 for S in reactor cyber apex; do
   shot "$S-performance" $L -page performance -style $S
 done
-shot settings $L -settings
-shot settings-cyber $L -settings -style cyber
+shot settings $L -settingspage
+shot settings-cyber $L -settingspage -style cyber
 shot connect $L -connect -style reactor
 shot hot $L -page core -style cyber -hot -fahrenheit
 shot gilded-rose $L -page overview -style gilded -accent rose

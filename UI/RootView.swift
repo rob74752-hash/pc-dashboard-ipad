@@ -8,7 +8,9 @@ struct RootView: View {
     var body: some View {
         @Bindable var store = store
         Group {
-            if store.current == nil || store.showConnect {
+            if store.settingsInline {
+                SettingsView()
+            } else if store.current == nil || store.showConnect {
                 ConnectView()
                     .transition(.opacity)
             } else {

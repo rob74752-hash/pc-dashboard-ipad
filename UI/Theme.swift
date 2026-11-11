@@ -180,6 +180,7 @@ struct Card<Content: View>: View {
                             .font(.small)
                             .foregroundStyle(Theme.text3)
                             .lineLimit(1)
+                            .minimumScaleFactor(0.75)
                             .truncationMode(.middle)
                     }
                 }

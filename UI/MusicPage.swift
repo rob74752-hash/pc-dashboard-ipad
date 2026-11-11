@@ -82,7 +82,7 @@ struct ArtStage: View {
             ZStack {
                 Vinyl(tint: store.artTint, playing: playing && fx)
                     .frame(width: side * 0.92, height: side * 0.92)
-                    .offset(x: playing ? side * 0.30 : side * 0.06)
+                    .offset(x: playing ? side * 0.38 : side * 0.08)
                     .animation(.spring(response: 0.9, dampingFraction: 0.8), value: playing)
                 Artwork(size: side)
                     .shadow(color: store.artTint.opacity(Theme.style == .paper ? 0.25 : 0.55), radius: 50, y: 18)
@@ -106,7 +106,7 @@ struct ArtStage: View {
                 .scaleEffect(playing ? 1 : 0.94)
                 .allowsHitTesting(false)
         }
-        .padding(.trailing, side * 0.16)
+        .padding(.trailing, side * 0.24)
         .onAppear { lean = true }
     }
 }

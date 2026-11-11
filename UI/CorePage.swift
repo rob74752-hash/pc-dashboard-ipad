@@ -179,6 +179,7 @@ struct CoreStat: View {
                 BigNumber(value: down.0, unit: down.1, size: 48)
                 Sparkline(values: store.recent(60, \.rx), fill: false)
                     .frame(height: 14)
+                    .padding(.vertical, -5.5)
                 note("Up " + Fmt.bitsText(s.net.tx))
             }
         }

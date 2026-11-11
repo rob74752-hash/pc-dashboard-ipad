@@ -164,10 +164,11 @@ struct CPUHero: View {
     /// The big number and its vital signs on the left; the look's object over the thread bars on the right.
     private func standard(_ s: Snapshot, _ size: CGSize) -> some View {
         let side = max(60, min(size.width * 0.38, size.height - 56))
-        let big = min(92, max(56, size.height * 0.42))
+        let big = min(88, max(52, size.height * 0.40))
         return HStack(alignment: .top, spacing: 16) {
             VStack(alignment: .leading, spacing: 12) {
                 BigNumber(value: Fmt.pct(s.cpu.load), unit: "%", size: big, solid: true)
+                    .fixedSize(horizontal: false, vertical: true)
                 stats(s)
                 Sparkline(values: store.recent(120, \.cpu), maxValue: 100)
                     .frame(maxHeight: .infinity)
@@ -185,8 +186,8 @@ struct CPUHero: View {
 
     /// Apex: the rev counter is the readout.
     private func apex(_ s: Snapshot, _ size: CGSize) -> some View {
-        let side = max(80, min(size.height, size.width * 0.46))
-        return HStack(alignment: .center, spacing: 20) {
+        let side = max(80, min(size.height, size.width * 0.42))
+        return HStack(alignment: .center, spacing: 18) {
             ZStack {
                 Tachometer(value: s.cpu.load ?? 0)
                 VStack(spacing: 0) {
@@ -210,7 +211,7 @@ struct CPUHero: View {
     private func stats(_ s: Snapshot) -> some View {
         let f = store.settings.fahrenheit
         let level = Fmt.level(s.cpu.temp, .cpu)
-        return HStack(spacing: 22) {
+        return HStack(spacing: Theme.style == .apex ? 14 : 22) {
             MiniStat(label: "Clock", value: Fmt.ghz(s.cpu.mhz), unit: "GHz")
             MiniStat(label: "Temp", value: Fmt.tempValue(s.cpu.temp, fahrenheit: f).map { String($0) } ?? "--",
                      unit: f ? "°F" : "°C", color: level >= 2 ? Theme.levelColor(level) : Theme.ivory)
@@ -360,39 +361,51 @@ struct NowPlayingCard: View {
         let m = store.media
         Card(title: "Now playing", trailing: m?.app) {
             if let m {
-                Button { store.page = .music } label: {
-                    HStack(alignment: .center, spacing: 14) {
-                        Artwork(size: 84)
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(m.title.isEmpty ? "Unknown title" : m.title)
-                                .font(Theme.d.text(17, .semibold))
-                                .foregroundStyle(Theme.ivory)
-                                .lineLimit(2)
-                            Text(m.artist)
-                                .font(.ui)
-                                .foregroundStyle(Theme.gold)
-                                .lineLimit(1)
-                            if !m.album.isEmpty {
-                                Text(m.album).font(.small).foregroundStyle(Theme.text3).lineLimit(1)
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    .contentShape(Rectangle())
+                // Use the roomiest layout that fits the card.
+                ViewThatFits(in: .vertical) {
+                    player(m, art: 84, big: 54, small: 42, album: true)
+                    player(m, art: 68, big: 48, small: 38, album: false)
+                    player(m, art: 52, big: 42, small: 34, album: false)
                 }
-                .buttonStyle(.plain)
-                Spacer(minLength: 0)
-                SongProgress()
-                HStack(spacing: 18) {
-                    Spacer()
-                    RingButton(symbol: "backward.fill", size: 42, enabled: m.can.prev) { store.mediaAction("prev") }
-                    RingButton(symbol: m.isPlaying ? "pause.fill" : "play.fill", size: 54, filled: true,
-                               enabled: m.can.toggle || m.can.play || m.can.pause) { store.mediaAction("toggle") }
-                    RingButton(symbol: "forward.fill", size: 42, enabled: m.can.next) { store.mediaAction("next") }
-                    Spacer()
-                }
+                .frame(maxHeight: .infinity, alignment: .top)
             } else {
                 NothingPlaying(compact: true)
+            }
+        }
+    }
+
+    private func player(_ m: MediaInfo, art: CGFloat, big: CGFloat, small: CGFloat, album: Bool) -> some View {
+        VStack(alignment: .leading, spacing: art > 60 ? 12 : 8) {
+            Button { store.page = .music } label: {
+                HStack(alignment: .center, spacing: 14) {
+                    Artwork(size: art)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(m.title.isEmpty ? "Unknown title" : m.title)
+                            .font(Theme.d.text(17, .semibold))
+                            .foregroundStyle(Theme.ivory)
+                            .lineLimit(album ? 2 : 1)
+                        Text(m.artist)
+                            .font(.ui)
+                            .foregroundStyle(Theme.gold)
+                            .lineLimit(1)
+                        if album, !m.album.isEmpty {
+                            Text(m.album).font(.small).foregroundStyle(Theme.text3).lineLimit(1)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            Spacer(minLength: 0)
+            SongProgress()
+            HStack(spacing: 18) {
+                Spacer()
+                RingButton(symbol: "backward.fill", size: small, enabled: m.can.prev) { store.mediaAction("prev") }
+                RingButton(symbol: m.isPlaying ? "pause.fill" : "play.fill", size: big, filled: true,
+                           enabled: m.can.toggle || m.can.play || m.can.pause) { store.mediaAction("toggle") }
+                RingButton(symbol: "forward.fill", size: small, enabled: m.can.next) { store.mediaAction("next") }
+                Spacer()
             }
         }
     }
@@ -495,23 +508,32 @@ struct TempsCard: View {
                     .foregroundStyle(Theme.text3)
                     .frame(maxHeight: .infinity, alignment: .top)
             } else {
-                VStack(spacing: 9) {
-                    ForEach(s.temps.prefix(3)) { t in
-                        let level = Fmt.level(t.celsius, t.kind)
-                        VStack(spacing: 5) {
-                            HStack {
-                                Text(t.name).font(.small).foregroundStyle(Theme.text2).lineLimit(1)
-                                Spacer()
-                                Text(Fmt.temp(t.celsius, fahrenheit: f))
-                                    .font(Theme.d.text(14, .semibold).monospacedDigit())
-                                    .foregroundStyle(level >= 1 ? Theme.levelColor(level) : Theme.ivory)
-                                    .contentTransition(.numericText())
-                            }
-                            Meter(value: min(100, t.celsius), color: Theme.levelColor(level), height: 2)
-                        }
-                    }
+                // Use the roomiest spacing that fits the card.
+                ViewThatFits(in: .vertical) {
+                    rows(s, f, gap: 9, inner: 5)
+                    rows(s, f, gap: 5, inner: 3)
+                    rows(s, f, gap: 2, inner: 2)
                 }
-                Spacer(minLength: 0)
+                .frame(maxHeight: .infinity, alignment: .top)
+            }
+        }
+    }
+
+    private func rows(_ s: Snapshot, _ f: Bool, gap: CGFloat, inner: CGFloat) -> some View {
+        VStack(spacing: gap) {
+            ForEach(s.temps.prefix(3)) { t in
+                let level = Fmt.level(t.celsius, t.kind)
+                VStack(spacing: inner) {
+                    HStack {
+                        Text(t.name).font(.small).foregroundStyle(Theme.text2).lineLimit(1)
+                        Spacer()
+                        Text(Fmt.temp(t.celsius, fahrenheit: f))
+                            .font(Theme.d.text(14, .semibold).monospacedDigit())
+                            .foregroundStyle(level >= 1 ? Theme.levelColor(level) : Theme.ivory)
+                            .contentTransition(.numericText())
+                    }
+                    Meter(value: min(100, t.celsius), color: Theme.levelColor(level), height: 2)
+                }
             }
         }
     }

@@ -27,7 +27,15 @@ struct HeroObject: View {
         case .paper:
             solid(.ink, cpu, [cpu, gpu, mem], live)
         case .reactor:
+            // The glow fades out before the edge of its square, so no edge ever shows.
             solid(.plasma, cpu, [cpu, gpu, mem], live)
+                .mask {
+                    GeometryReader { g in
+                        RadialGradient(stops: [.init(color: .white, location: 0), .init(color: .white, location: 0.80),
+                                               .init(color: .clear, location: 1)],
+                                       center: .center, startRadius: 0, endRadius: min(g.size.width, g.size.height) / 2)
+                    }
+                }
         case .molten:
             solid(.trefoil, cpu, [cpu, gpu, mem], live)
         case .cyber:
@@ -106,7 +114,7 @@ struct AsciiTorus: View {
         var depth = [[Double]](repeating: [Double](repeating: 0, count: cols), count: rows)
         let r1 = 1.0, r2 = 2.0, k2 = 5.0
         // Scale so the torus fills the smaller side of the grid.
-        let k1 = min(Double(cols) * 0.46, Double(rows) * 0.46 / aspect) * k2 / (r1 + r2)
+        let k1 = min(Double(cols), Double(rows) / aspect) * k2 * 3 / (8 * (r1 + r2))
         let cosA = cos(a), sinA = sin(a), cosB = cos(b), sinB = sin(b)
         var theta = 0.0
         while theta < 2 * Double.pi {
@@ -310,16 +318,16 @@ struct Vinyl: View {
             GeometryReader { g in
                 let s = min(g.size.width, g.size.height)
                 ZStack {
-                    Circle().fill(Color(hex: 0x0A0A0A))
+                    Circle().fill(Color(hex: 0x151515))
                     // grooves
                     ForEach(0..<7, id: \.self) { i in
                         Circle()
-                            .stroke(Color.white.opacity(i % 2 == 0 ? 0.07 : 0.035), lineWidth: 1)
+                            .stroke(Color.white.opacity(i % 2 == 0 ? 0.12 : 0.06), lineWidth: 1)
                             .padding(s * (0.05 + CGFloat(i) * 0.042))
                     }
                     // the light across the grooves stays put while the record turns
                     Circle()
-                        .fill(AngularGradient(colors: [.clear, Color.white.opacity(0.16), .clear, .clear, Color.white.opacity(0.10), .clear, .clear],
+                        .fill(AngularGradient(colors: [.clear, Color.white.opacity(0.30), .clear, .clear, Color.white.opacity(0.20), .clear, .clear],
                                               center: .center))
                         .padding(s * 0.03)
                     ZStack {
@@ -330,7 +338,7 @@ struct Vinyl: View {
                     }
                     .frame(width: s * 0.34, height: s * 0.34)
                     .rotationEffect(.degrees(t * 200))
-                    Circle().strokeBorder(Color.white.opacity(0.14), lineWidth: 1)
+                    Circle().strokeBorder(Color.white.opacity(0.28), lineWidth: 1)
                 }
                 .frame(width: s, height: s)
             }
